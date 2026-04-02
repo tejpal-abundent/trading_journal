@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, case
+from sqlalchemy.orm import Session
+from sqlalchemy import select
 from pydantic import BaseModel
 from typing import Optional
 import os
@@ -20,12 +20,12 @@ app.add_middleware(
 
 
 @app.on_event("startup")
-async def startup():
-    await init_db()
+def startup():
+    init_db()
 
 
 @app.get("/")
-async def health():
+def health():
     return {"status": "ok"}
 
 
@@ -81,30 +81,30 @@ class TradeOut(BaseModel):
 # --- Routes ---
 
 @app.post("/api/trades", response_model=TradeOut)
-async def create_trade(trade: TradeCreate, db: AsyncSession = Depends(get_db)):
+def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
     db_trade = Trade(**trade.model_dump())
     db.add(db_trade)
-    await db.commit()
-    await db.refresh(db_trade)
+    db.commit()
+    db.refresh(db_trade)
     return db_trade
 
 
 @app.get("/api/trades", response_model=list[TradeOut])
-async def list_trades(
+def list_trades(
     status: Optional[str] = None,
     limit: int = 100,
-    db: AsyncSession = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
     q = select(Trade).order_by(Trade.created_at.desc()).limit(limit)
     if status:
         q = q.where(Trade.status == status)
-    result = await db.execute(q)
+    result = db.execute(q)
     return result.scalars().all()
 
 
 @app.get("/api/trades/{trade_id}", response_model=TradeOut)
-async def get_trade(trade_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Trade).where(Trade.id == trade_id))
+def get_trade(trade_id: int, db: Session = Depends(get_db)):
+    result = db.execute(select(Trade).where(Trade.id == trade_id))
     trade = result.scalar_one_or_none()
     if not trade:
         raise HTTPException(404, "Trade not found")
@@ -112,8 +112,8 @@ async def get_trade(trade_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @app.patch("/api/trades/{trade_id}", response_model=TradeOut)
-async def update_trade(trade_id: int, data: TradeUpdate, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Trade).where(Trade.id == trade_id))
+def update_trade(trade_id: int, data: TradeUpdate, db: Session = Depends(get_db)):
+    result = db.execute(select(Trade).where(Trade.id == trade_id))
     trade = result.scalar_one_or_none()
     if not trade:
         raise HTTPException(404, "Trade not found")
@@ -125,27 +125,27 @@ async def update_trade(trade_id: int, data: TradeUpdate, db: AsyncSession = Depe
     for k, v in update_data.items():
         setattr(trade, k, v)
 
-    await db.commit()
-    await db.refresh(trade)
+    db.commit()
+    db.refresh(trade)
     return trade
 
 
 @app.delete("/api/trades/{trade_id}")
-async def delete_trade(trade_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Trade).where(Trade.id == trade_id))
+def delete_trade(trade_id: int, db: Session = Depends(get_db)):
+    result = db.execute(select(Trade).where(Trade.id == trade_id))
     trade = result.scalar_one_or_none()
     if not trade:
         raise HTTPException(404, "Trade not found")
-    await db.delete(trade)
-    await db.commit()
+    db.delete(trade)
+    db.commit()
     return {"ok": True}
 
 
 @app.get("/api/analytics")
-async def get_analytics(days: int = 14, db: AsyncSession = Depends(get_db)):
+def get_analytics(days: int = 14, db: Session = Depends(get_db)):
     cutoff = datetime.utcnow() - timedelta(days=days)
     q = select(Trade).where(Trade.created_at >= cutoff).order_by(Trade.created_at.desc())
-    result = await db.execute(q)
+    result = db.execute(q)
     trades = result.scalars().all()
 
     closed = [t for t in trades if t.status in ("win", "loss", "breakeven")]
