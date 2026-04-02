@@ -7,19 +7,12 @@ TURSO_URL = os.environ.get("TURSO_DB_URL")
 TURSO_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
 
 if TURSO_URL:
-    import libsql_experimental as libsql
-
-    def _get_connection():
-        return libsql.connect(
-            TURSO_URL,
-            auth_token=TURSO_TOKEN,
-        )
-
-    engine = create_engine("sqlite://", creator=_get_connection, echo=False)
+    # sqlalchemy-libsql uses libsql:// scheme
+    DATABASE_URL = f"{TURSO_URL}?authToken={TURSO_TOKEN}&secure=true"
+    engine = create_engine(DATABASE_URL, echo=False)
 else:
     DB_PATH = os.path.join(os.path.dirname(__file__), "trading_journal.db")
-    DATABASE_URL = f"sqlite:///{DB_PATH}"
-    engine = create_engine(DATABASE_URL, echo=False)
+    engine = create_engine(f"sqlite:///{DB_PATH}", echo=False)
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
