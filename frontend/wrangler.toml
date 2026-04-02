@@ -1,0 +1,10 @@
+name = "tradingjournal"
+compatibility_date = "2025-09-27"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "dist"
+
+# SPA routing - serve index.html for all non-file routes
+[assets.serving]
+not_found = "/index.html"
