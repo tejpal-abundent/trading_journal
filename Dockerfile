@@ -6,6 +6,7 @@ COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ .
+RUN echo "build-v2" > /tmp/cache-bust
 
 EXPOSE 10000
 
