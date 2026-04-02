@@ -32,19 +32,28 @@ export default function TradeList() {
     });
   };
 
+  const [saving, setSaving] = useState(false);
+
   const saveResult = async () => {
-    if (!editing) return;
-    const data: Record<string, unknown> = { status: form.status, lessons: form.lessons };
-    if (form.entry_price) data.entry_price = parseFloat(form.entry_price);
-    if (form.exit_price) data.exit_price = parseFloat(form.exit_price);
-    if (form.stop_loss) data.stop_loss = parseFloat(form.stop_loss);
-    if (form.take_profit) data.take_profit = parseFloat(form.take_profit);
-    if (form.pnl) data.pnl = parseFloat(form.pnl);
-    if (form.pnl_percent) data.pnl_percent = parseFloat(form.pnl_percent);
-    if (form.rr_achieved) data.rr_achieved = parseFloat(form.rr_achieved);
-    await api.updateTrade(editing.id, data as Partial<Trade>);
-    setEditing(null);
-    load();
+    if (!editing || saving) return;
+    setSaving(true);
+    try {
+      const data: Record<string, unknown> = { status: form.status, lessons: form.lessons };
+      if (form.entry_price) data.entry_price = parseFloat(form.entry_price);
+      if (form.exit_price) data.exit_price = parseFloat(form.exit_price);
+      if (form.stop_loss) data.stop_loss = parseFloat(form.stop_loss);
+      if (form.take_profit) data.take_profit = parseFloat(form.take_profit);
+      if (form.pnl) data.pnl = parseFloat(form.pnl);
+      if (form.pnl_percent) data.pnl_percent = parseFloat(form.pnl_percent);
+      if (form.rr_achieved) data.rr_achieved = parseFloat(form.rr_achieved);
+      await api.updateTrade(editing.id, data as Partial<Trade>);
+      setEditing(null);
+      load();
+    } catch (e) {
+      alert("Failed to save: " + (e instanceof Error ? e.message : "Unknown error"));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const deleteTrade = async (id: number) => {
@@ -190,7 +199,7 @@ export default function TradeList() {
 
               <div className="flex gap-2 mt-2" style={{ justifyContent: "flex-end" }}>
                 <button onClick={() => setEditing(null)} className="btn btn-sm btn-ghost">Cancel</button>
-                <button onClick={saveResult} className="btn btn-sm btn-primary">Save Result</button>
+                <button onClick={saveResult} disabled={saving} className="btn btn-sm btn-primary">{saving ? "Saving..." : "Save Result"}</button>
               </div>
             </div>
           </div>
