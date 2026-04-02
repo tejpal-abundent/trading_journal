@@ -45,13 +45,22 @@ def execute(sql: str, args=None):
     return _execute(sql, args)
 
 
+def _cell_value(cell):
+    """Extract value from a Turso cell, handling null and different formats."""
+    if isinstance(cell, dict):
+        if cell.get("type") == "null":
+            return None
+        return cell.get("value")
+    return cell
+
+
 def fetch_all(sql: str, args=None):
     """Execute SQL and return list of dicts."""
     result = _execute(sql, args)
     cols = [c["name"] for c in result["cols"]]
     rows = []
     for row in result["rows"]:
-        rows.append({col: cell["value"] for col, cell in zip(cols, row)})
+        rows.append({col: _cell_value(cell) for col, cell in zip(cols, row)})
     return rows
 
 
