@@ -11,6 +11,17 @@ TURSO_TOKEN = os.environ.get("TURSO_AUTH_TOKEN", "")
 HTTP_URL = TURSO_URL.replace("libsql://", "https://")
 
 
+def _make_arg(v):
+    """Convert a Python value to a Turso API arg."""
+    if v is None:
+        return {"type": "null", "value": None}
+    if isinstance(v, int):
+        return {"type": "integer", "value": str(v)}
+    if isinstance(v, float):
+        return {"type": "float", "value": str(v)}
+    return {"type": "text", "value": str(v)}
+
+
 def _execute(sql: str, args=None):
     """Execute SQL against Turso HTTP API and return results."""
     url = f"{HTTP_URL}/v2/pipeline"
@@ -18,27 +29,22 @@ def _execute(sql: str, args=None):
 
     stmt = {"type": "execute", "stmt": {"sql": sql}}
     if args:
-        stmt["stmt"]["args"] = [{"type": _type_of(v), "value": str(v) if v is not None else None} for v in args]
+        stmt["stmt"]["args"] = [_make_arg(v) for v in args]
 
     body = {"requests": [stmt, {"type": "close"}]}
     resp = requests.post(url, headers=headers, json=body)
-    resp.raise_for_status()
+
+    if not resp.ok:
+        print(f"TURSO REQUEST: {json.dumps(body, indent=2)}")
+        print(f"TURSO RESPONSE: {resp.status_code} {resp.text}")
+        resp.raise_for_status()
+
     data = resp.json()
 
     result = data["results"][0]
     if result["type"] == "error":
         raise Exception(result["error"]["message"])
     return result["response"]["result"]
-
-
-def _type_of(v):
-    if v is None:
-        return "null"
-    if isinstance(v, int):
-        return "integer"
-    if isinstance(v, float):
-        return "float"
-    return "text"
 
 
 def execute(sql: str, args=None):
