@@ -239,16 +239,24 @@ def get_trade(trade_id: int):
 
 @app.patch("/api/trades/{trade_id}")
 def update_trade(trade_id: int, data: TradeUpdate):
-    existing = db_get_trade(trade_id)
-    if not existing:
-        raise HTTPException(404, "Trade not found")
+    import traceback
+    try:
+        existing = db_get_trade(trade_id)
+        if not existing:
+            raise HTTPException(404, "Trade not found")
 
-    update_data = data.model_dump(exclude_unset=True)
-    if update_data.get("status") in ("win", "loss", "breakeven"):
-        update_data["closed_at"] = datetime.utcnow().isoformat()
+        update_data = data.model_dump(exclude_unset=True)
+        if update_data.get("status") in ("win", "loss", "breakeven"):
+            update_data["closed_at"] = datetime.utcnow().isoformat()
 
-    row = db_update_trade(trade_id, update_data)
-    return _parse_trade(row)
+        row = db_update_trade(trade_id, update_data)
+        return _parse_trade(row)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"UPDATE ERROR: {e}")
+        traceback.print_exc()
+        raise HTTPException(500, str(e))
 
 
 @app.delete("/api/trades/{trade_id}")
