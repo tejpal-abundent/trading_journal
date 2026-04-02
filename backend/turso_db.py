@@ -15,10 +15,10 @@ def _make_arg(v):
     """Convert a Python value to a Turso API arg."""
     if v is None:
         return {"type": "null", "value": None}
-    if isinstance(v, int):
+    if isinstance(v, int) and not isinstance(v, bool):
         return {"type": "integer", "value": str(v)}
     if isinstance(v, float):
-        return {"type": "float", "value": str(v)}
+        return {"type": "float", "value": v}
     return {"type": "text", "value": str(v)}
 
 
