@@ -24,6 +24,11 @@ async def startup():
     await init_db()
 
 
+@app.get("/")
+async def health():
+    return {"status": "ok"}
+
+
 # --- Schemas ---
 
 class TradeCreate(BaseModel):
