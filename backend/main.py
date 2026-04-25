@@ -61,6 +61,12 @@ if USE_TURSO:
     def db_trades_since(cutoff: str):
         return fetch_all("SELECT * FROM trades WHERE created_at >= ? ORDER BY created_at DESC", [cutoff])
 
+    def db_trades_between(start_iso: str, end_iso: str):
+        return fetch_all(
+            "SELECT * FROM trades WHERE created_at >= ? AND created_at <= ? ORDER BY created_at DESC",
+            [start_iso, end_iso],
+        )
+
 else:
     from sqlalchemy import create_engine, select
     from sqlalchemy.orm import DeclarativeBase, sessionmaker
@@ -204,6 +210,56 @@ else:
         ).scalars().all()]
         db.close()
         return trades
+
+    def db_trades_between(start_iso: str, end_iso: str):
+        db = _get_db()
+        trades = [_trade_to_dict(t) for t in db.execute(
+            select(Trade).where(Trade.created_at >= start_iso, Trade.created_at <= end_iso)
+                         .order_by(Trade.created_at.desc())
+        ).scalars().all()]
+        db.close()
+        return trades
+
+    from sqlalchemy import text as _text
+
+    def _sa_list_strategies():
+        with engine.connect() as conn:
+            rows = conn.execute(_text("SELECT * FROM strategies ORDER BY id ASC")).mappings().all()
+            return [dict(r) for r in rows]
+
+    def _sa_create_strategy(data):
+        criteria_json = json.dumps([c if isinstance(c, dict) else c.model_dump() for c in data["criteria"]])
+        core_json = json.dumps(data["is_core_required"])
+        with engine.begin() as conn:
+            conn.execute(_text(
+                "INSERT INTO strategies (name, criteria, is_core_required) VALUES (:n, :c, :ic)"
+            ), {"n": data["name"], "c": criteria_json, "ic": core_json})
+            r = conn.execute(_text("SELECT * FROM strategies WHERE name = :n"),
+                             {"n": data["name"]}).mappings().first()
+            return dict(r)
+
+    def _sa_update_strategy(sid, payload):
+        sets = ", ".join(f"{k} = :{k}" for k in payload.keys())
+        params = {**payload, "id": sid}
+        with engine.begin() as conn:
+            conn.execute(_text(f"UPDATE strategies SET {sets} WHERE id = :id"), params)
+            r = conn.execute(_text("SELECT * FROM strategies WHERE id = :id"),
+                             {"id": sid}).mappings().first()
+            return dict(r) if r else None
+
+    def _sa_delete_strategy(sid):
+        with engine.begin() as conn:
+            r = conn.execute(_text("SELECT * FROM strategies WHERE id = :id"),
+                             {"id": sid}).mappings().first()
+            if not r:
+                from fastapi import HTTPException
+                raise HTTPException(404, "Strategy not found")
+            in_use = conn.execute(_text("SELECT COUNT(*) AS c FROM trades WHERE strategy = :n"),
+                                  {"n": r["name"]}).scalar()
+            if int(in_use) > 0:
+                from fastapi import HTTPException
+                raise HTTPException(409, "Strategy is referenced by existing trades")
+            conn.execute(_text("DELETE FROM strategies WHERE id = :id"), {"id": sid})
 
 
 # --- Helpers ---
@@ -384,6 +440,75 @@ def _tags_to_db(tags: list[str]) -> str:
         return ","
     cleaned = [t.strip() for t in tags if t and t.strip()]
     return "," + ",".join(cleaned) + "," if cleaned else ","
+
+
+class CriterionDef(BaseModel):
+    id: str
+    label: str
+    points: int
+    category: str = "Quality"
+    description: str = ""
+
+
+class StrategyCreate(BaseModel):
+    name: str
+    criteria: list[CriterionDef]
+    is_core_required: list[str] = []
+
+
+class StrategyUpdate(BaseModel):
+    name: Optional[str] = None
+    criteria: Optional[list[CriterionDef]] = None
+    is_core_required: Optional[list[str]] = None
+
+
+class AccountSnapshotCreate(BaseModel):
+    balance: float
+    note: str = ""
+
+
+class ReviewCreate(BaseModel):
+    period_type: str
+    period_start: str
+    period_end: str
+    notes: str
+
+
+def _parse_strategy(row):
+    if not row:
+        return None
+    return {
+        "id": int(row["id"]),
+        "name": row["name"],
+        "criteria": json.loads(row["criteria"]) if isinstance(row.get("criteria"), str) else row.get("criteria") or [],
+        "is_core_required": json.loads(row.get("is_core_required") or "[]") if isinstance(row.get("is_core_required"), str) else (row.get("is_core_required") or []),
+        "created_at": row.get("created_at"),
+    }
+
+
+def _parse_snapshot(row):
+    if not row:
+        return None
+    return {
+        "id": int(row["id"]),
+        "balance": float(row["balance"]),
+        "recorded_at": row.get("recorded_at"),
+        "note": row.get("note") or "",
+    }
+
+
+def _parse_review(row):
+    if not row:
+        return None
+    return {
+        "id": int(row["id"]),
+        "period_type": row["period_type"],
+        "period_start": row["period_start"],
+        "period_end": row["period_end"],
+        "notes": row["notes"],
+        "stats_snapshot": json.loads(row["stats_snapshot"]) if isinstance(row.get("stats_snapshot"), str) else row.get("stats_snapshot"),
+        "created_at": row.get("created_at"),
+    }
 
 
 # --- Routes ---
@@ -638,3 +763,170 @@ def get_analytics(days: int = 14):
         "direction_stats": direction_stats,
         "trades": trades,
     }
+
+
+# --- Strategies ---
+
+@app.get("/api/strategies")
+def list_strategies():
+    rows = fetch_all("SELECT * FROM strategies ORDER BY id ASC") if USE_TURSO else _sa_list_strategies()
+    return [_parse_strategy(r) for r in rows]
+
+
+@app.post("/api/strategies")
+def create_strategy(data: StrategyCreate):
+    if USE_TURSO:
+        execute(
+            "INSERT INTO strategies (name, criteria, is_core_required) VALUES (?, ?, ?)",
+            [data.name, json.dumps([c.model_dump() for c in data.criteria]),
+             json.dumps(data.is_core_required)],
+        )
+        row = fetch_one("SELECT * FROM strategies WHERE name = ?", [data.name])
+    else:
+        row = _sa_create_strategy(data.model_dump())
+    return _parse_strategy(row)
+
+
+@app.patch("/api/strategies/{strategy_id}")
+def update_strategy(strategy_id: int, data: StrategyUpdate):
+    payload = data.model_dump(exclude_unset=True)
+    if "criteria" in payload:
+        payload["criteria"] = json.dumps(payload["criteria"])
+    if "is_core_required" in payload:
+        payload["is_core_required"] = json.dumps(payload["is_core_required"])
+
+    if not payload:
+        raise HTTPException(400, "no fields to update")
+    sets = ", ".join(f"{k} = ?" for k in payload.keys())
+    if USE_TURSO:
+        execute(f"UPDATE strategies SET {sets} WHERE id = ?", list(payload.values()) + [strategy_id])
+        row = fetch_one("SELECT * FROM strategies WHERE id = ?", [strategy_id])
+    else:
+        row = _sa_update_strategy(strategy_id, payload)
+    if not row:
+        raise HTTPException(404, "Strategy not found")
+    return _parse_strategy(row)
+
+
+@app.delete("/api/strategies/{strategy_id}")
+def delete_strategy(strategy_id: int):
+    if USE_TURSO:
+        row = fetch_one("SELECT name FROM strategies WHERE id = ?", [strategy_id])
+        if not row:
+            raise HTTPException(404, "Strategy not found")
+        in_use = fetch_one("SELECT COUNT(*) AS c FROM trades WHERE strategy = ?", [row["name"]])
+        if int(in_use["c"]) > 0:
+            raise HTTPException(409, "Strategy is referenced by existing trades")
+        execute("DELETE FROM strategies WHERE id = ?", [strategy_id])
+    else:
+        _sa_delete_strategy(strategy_id)
+    return {"ok": True}
+
+
+# --- Account snapshots ---
+
+@app.get("/api/account-snapshots")
+def list_snapshots():
+    if USE_TURSO:
+        rows = fetch_all("SELECT * FROM account_snapshots ORDER BY id DESC")
+    else:
+        from sqlalchemy import text as _text
+        with engine.connect() as conn:
+            rows = [dict(r) for r in conn.execute(_text("SELECT * FROM account_snapshots ORDER BY id DESC")).mappings()]
+    return [_parse_snapshot(r) for r in rows]
+
+
+@app.post("/api/account-snapshots")
+def create_snapshot(data: AccountSnapshotCreate):
+    if USE_TURSO:
+        execute("INSERT INTO account_snapshots (balance, note) VALUES (?, ?)", [data.balance, data.note])
+        row = fetch_one("SELECT * FROM account_snapshots ORDER BY id DESC LIMIT 1")
+    else:
+        from sqlalchemy import text as _text
+        with engine.begin() as conn:
+            conn.execute(_text("INSERT INTO account_snapshots (balance, note) VALUES (:b, :n)"),
+                         {"b": data.balance, "n": data.note})
+            row = dict(conn.execute(_text("SELECT * FROM account_snapshots ORDER BY id DESC LIMIT 1")).mappings().first())
+    return _parse_snapshot(row)
+
+
+@app.get("/api/account-snapshots/latest")
+def latest_snapshot():
+    if USE_TURSO:
+        row = fetch_one("SELECT * FROM account_snapshots ORDER BY id DESC LIMIT 1")
+    else:
+        from sqlalchemy import text as _text
+        with engine.connect() as conn:
+            r = conn.execute(_text("SELECT * FROM account_snapshots ORDER BY id DESC LIMIT 1")).mappings().first()
+            row = dict(r) if r else None
+    if not row:
+        return {"balance": None}
+    return _parse_snapshot(row)
+
+
+# --- Reviews ---
+
+def _compute_analytics_range(start_iso=None, end_iso=None, days=None):
+    # Replaced in Task 11 with the analytics module. Stub uses legacy get_analytics.
+    return get_analytics(days=days or 14)
+
+
+@app.get("/api/reviews")
+def list_reviews():
+    if USE_TURSO:
+        rows = fetch_all("SELECT id, period_type, period_start, period_end, notes, created_at FROM review_notes ORDER BY id DESC")
+    else:
+        from sqlalchemy import text as _text
+        with engine.connect() as conn:
+            rows = [dict(r) for r in conn.execute(_text("SELECT id, period_type, period_start, period_end, notes, created_at FROM review_notes ORDER BY id DESC")).mappings()]
+    return [{
+        "id": int(r["id"]), "period_type": r["period_type"],
+        "period_start": r["period_start"], "period_end": r["period_end"],
+        "notes": r["notes"], "created_at": r.get("created_at"),
+    } for r in rows]
+
+
+@app.get("/api/reviews/{review_id}")
+def get_review(review_id: int):
+    if USE_TURSO:
+        row = fetch_one("SELECT * FROM review_notes WHERE id = ?", [review_id])
+    else:
+        from sqlalchemy import text as _text
+        with engine.connect() as conn:
+            r = conn.execute(_text("SELECT * FROM review_notes WHERE id = :i"), {"i": review_id}).mappings().first()
+            row = dict(r) if r else None
+    if not row:
+        raise HTTPException(404, "Review not found")
+    return _parse_review(row)
+
+
+@app.post("/api/reviews")
+def create_review(data: ReviewCreate):
+    snapshot = _compute_analytics_range(data.period_start, data.period_end)
+    if USE_TURSO:
+        execute(
+            "INSERT INTO review_notes (period_type, period_start, period_end, notes, stats_snapshot) VALUES (?, ?, ?, ?, ?)",
+            [data.period_type, data.period_start, data.period_end, data.notes, json.dumps(snapshot)],
+        )
+        row = fetch_one("SELECT * FROM review_notes ORDER BY id DESC LIMIT 1")
+    else:
+        from sqlalchemy import text as _text
+        with engine.begin() as conn:
+            conn.execute(_text("""
+                INSERT INTO review_notes (period_type, period_start, period_end, notes, stats_snapshot)
+                VALUES (:t, :s, :e, :n, :ss)
+            """), {"t": data.period_type, "s": data.period_start, "e": data.period_end,
+                   "n": data.notes, "ss": json.dumps(snapshot)})
+            row = dict(conn.execute(_text("SELECT * FROM review_notes ORDER BY id DESC LIMIT 1")).mappings().first())
+    return _parse_review(row)
+
+
+@app.delete("/api/reviews/{review_id}")
+def delete_review(review_id: int):
+    if USE_TURSO:
+        execute("DELETE FROM review_notes WHERE id = ?", [review_id])
+    else:
+        from sqlalchemy import text as _text
+        with engine.begin() as conn:
+            conn.execute(_text("DELETE FROM review_notes WHERE id = :i"), {"i": review_id})
+    return {"ok": True}
