@@ -47,9 +47,8 @@ if USE_TURSO:
         sets = []
         vals = []
         for k, v in data.items():
-            if v is not None:
-                sets.append(f"{k} = ?")
-                vals.append(v)
+            sets.append(f"{k} = ?")
+            vals.append(v)
         if not sets:
             return db_get_trade(trade_id)
         vals.append(trade_id)
@@ -186,8 +185,7 @@ else:
             db.close()
             return None
         for k, v in data.items():
-            if v is not None:
-                setattr(t, k, v)
+            setattr(t, k, v)
         db.commit(); db.refresh(t)
         result = _trade_to_dict(t)
         db.close()
@@ -421,14 +419,32 @@ def get_trade(trade_id: int):
 @app.patch("/api/trades/{trade_id}")
 def update_trade(trade_id: int, data: TradeUpdate):
     import traceback
+    from risk import compute_risk
     try:
         existing = db_get_trade(trade_id)
         if not existing:
             raise HTTPException(404, "Trade not found")
 
         update_data = data.model_dump(exclude_unset=True)
-        if update_data.get("status") in ("win", "loss", "breakeven"):
-            update_data["closed_at"] = datetime.utcnow().isoformat()
+
+        for key in ("emotions_entry", "emotions_exit", "mistake_tags"):
+            if key in update_data:
+                update_data[key] = _tags_to_db(update_data[key] or [])
+        if "partial_exits" in update_data:
+            update_data["partial_exits"] = json.dumps(update_data["partial_exits"] or [])
+        if "rules_followed" in update_data and update_data["rules_followed"] is not None:
+            update_data["rules_followed"] = int(update_data["rules_followed"])
+
+        if update_data.get("status") in ("win", "loss", "breakeven", "skipped"):
+            update_data["closed_at"] = datetime.utcnow()
+
+        risk_keys = {"entry_price", "stop_loss", "position_size", "account_size"}
+        if risk_keys & set(update_data.keys()):
+            merged = {**(existing or {}), **update_data}
+            risk = compute_risk(merged.get("entry_price"), merged.get("stop_loss"),
+                                merged.get("position_size"), merged.get("account_size"))
+            update_data["risk_dollars"] = risk["risk_dollars"]
+            update_data["risk_percent"] = risk["risk_percent"]
 
         row = db_update_trade(trade_id, update_data)
         return _parse_trade(row)
@@ -438,6 +454,108 @@ def update_trade(trade_id: int, data: TradeUpdate):
         print(f"UPDATE ERROR: {e}")
         traceback.print_exc()
         raise HTTPException(500, str(e))
+
+
+@app.post("/api/trades/{trade_id}/enter")
+def enter_trade(trade_id: int, data: TradeEnter):
+    from risk import compute_risk
+    existing = db_get_trade(trade_id)
+    if not existing:
+        raise HTTPException(404, "Trade not found")
+    payload = data.model_dump()
+    risk = compute_risk(payload["entry_price"], payload["stop_loss"],
+                        payload["position_size"], payload["account_size"])
+    update = {
+        "status": "entered",
+        "entry_price": payload["entry_price"],
+        "stop_loss": payload["stop_loss"],
+        "take_profit": payload.get("take_profit"),
+        "position_size": payload["position_size"],
+        "account_size": payload["account_size"],
+        "risk_dollars": risk["risk_dollars"],
+        "risk_percent": risk["risk_percent"],
+        "entry_timing": payload.get("entry_timing"),
+        "emotions_entry": _tags_to_db(payload.get("emotions_entry") or []),
+        "feelings_entry": payload.get("feelings_entry") or "",
+    }
+    row = db_update_trade(trade_id, update)
+    return _parse_trade(row)
+
+
+@app.post("/api/trades/{trade_id}/skip")
+def skip_trade(trade_id: int, data: TradeSkip):
+    existing = db_get_trade(trade_id)
+    if not existing:
+        raise HTTPException(404, "Trade not found")
+    update = {
+        "status": "skipped",
+        "skip_reason": data.skip_reason,
+        "emotions_entry": _tags_to_db(data.emotions_entry or []),
+        "closed_at": datetime.utcnow(),
+    }
+    row = db_update_trade(trade_id, update)
+    return _parse_trade(row)
+
+
+@app.post("/api/trades/{trade_id}/close")
+def close_trade(trade_id: int, data: TradeClose):
+    if data.status not in ("win", "loss", "breakeven"):
+        raise HTTPException(400, "status must be win | loss | breakeven")
+    existing = db_get_trade(trade_id)
+    if not existing:
+        raise HTTPException(404, "Trade not found")
+    update = {
+        "status": data.status,
+        "exit_price": data.exit_price,
+        "pnl": data.pnl,
+        "pnl_percent": data.pnl_percent,
+        "rr_achieved": data.rr_achieved,
+        "rules_followed": (None if data.rules_followed is None else int(data.rules_followed)),
+        "mistake_tags": _tags_to_db(data.mistake_tags or []),
+        "emotions_exit": _tags_to_db(data.emotions_exit or []),
+        "feelings_exit": data.feelings_exit or "",
+        "lessons": data.lessons or "",
+        "chart_url": data.chart_url or "",
+        "partial_exits": json.dumps(data.partial_exits or []),
+        "closed_at": datetime.utcnow(),
+    }
+    row = db_update_trade(trade_id, update)
+    return _parse_trade(row)
+
+
+@app.post("/api/trades/retroactive")
+def create_retroactive_trade(trade: TradeRetroactive):
+    from risk import compute_risk
+    if trade.status not in ("win", "loss", "breakeven"):
+        raise HTTPException(400, "status must be win | loss | breakeven")
+    risk = compute_risk(trade.entry_price, trade.stop_loss,
+                        trade.position_size, trade.account_size)
+    data = {
+        "pair": trade.pair, "direction": trade.direction, "timeframe": trade.timeframe,
+        "strategy": trade.strategy, "setup_score": trade.setup_score, "verdict": trade.verdict,
+        "criteria_checked": json.dumps(trade.criteria_checked),
+        "notes": trade.notes,
+        "planned_entry": trade.planned_entry, "planned_stop": trade.planned_stop,
+        "planned_target": trade.planned_target, "planned_rr": trade.planned_rr,
+        "status": trade.status, "retroactive": 1,
+        "entry_price": trade.entry_price, "stop_loss": trade.stop_loss,
+        "take_profit": trade.take_profit, "exit_price": trade.exit_price,
+        "position_size": trade.position_size, "account_size": trade.account_size,
+        "risk_dollars": risk["risk_dollars"], "risk_percent": risk["risk_percent"],
+        "entry_timing": trade.entry_timing,
+        "emotions_entry": _tags_to_db(trade.emotions_entry or []),
+        "feelings_entry": trade.feelings_entry,
+        "pnl": trade.pnl, "pnl_percent": trade.pnl_percent, "rr_achieved": trade.rr_achieved,
+        "rules_followed": (None if trade.rules_followed is None else int(trade.rules_followed)),
+        "mistake_tags": _tags_to_db(trade.mistake_tags or []),
+        "emotions_exit": _tags_to_db(trade.emotions_exit or []),
+        "feelings_exit": trade.feelings_exit,
+        "lessons": trade.lessons, "chart_url": trade.chart_url,
+        "partial_exits": json.dumps(trade.partial_exits or []),
+        "closed_at": datetime.utcnow(),
+    }
+    row = db_create_trade(data)
+    return _parse_trade(row)
 
 
 @app.delete("/api/trades/{trade_id}")
