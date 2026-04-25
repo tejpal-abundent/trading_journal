@@ -693,76 +693,10 @@ def delete_trade(trade_id: int):
 
 
 @app.get("/api/analytics")
-def get_analytics(days: int = 14):
-    cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
-    trades = [_parse_trade(r) for r in db_trades_since(cutoff)]
-
-    closed = [t for t in trades if t["status"] in ("win", "loss", "breakeven")]
-    wins = [t for t in closed if t["status"] == "win"]
-    losses = [t for t in closed if t["status"] == "loss"]
-
-    total_pnl = sum(t["pnl"] or 0 for t in closed)
-    avg_score = sum(t["setup_score"] for t in trades) / len(trades) if trades else 0
-    win_rate = len(wins) / len(closed) * 100 if closed else 0
-    avg_rr = sum(t["rr_achieved"] or 0 for t in closed) / len(closed) if closed else 0
-
-    score_buckets = {"A (85-100)": [], "B (70-84)": [], "C (55-69)": [], "D (<55)": []}
-    for t in closed:
-        s = t["setup_score"]
-        if s >= 85: score_buckets["A (85-100)"].append(t)
-        elif s >= 70: score_buckets["B (70-84)"].append(t)
-        elif s >= 55: score_buckets["C (55-69)"].append(t)
-        else: score_buckets["D (<55)"].append(t)
-
-    score_analysis = {}
-    for bucket, bt in score_buckets.items():
-        if bt:
-            bw = [t for t in bt if t["status"] == "win"]
-            score_analysis[bucket] = {
-                "count": len(bt),
-                "win_rate": round(len(bw) / len(bt) * 100, 1),
-                "avg_pnl": round(sum(t["pnl"] or 0 for t in bt) / len(bt), 2),
-            }
-
-    pairs = {}
-    for t in closed:
-        p = t["pair"]
-        if p not in pairs: pairs[p] = {"wins": 0, "losses": 0, "pnl": 0}
-        if t["status"] == "win": pairs[p]["wins"] += 1
-        elif t["status"] == "loss": pairs[p]["losses"] += 1
-        pairs[p]["pnl"] += t["pnl"] or 0
-
-    long_trades = [t for t in closed if t["direction"] == "LONG"]
-    short_trades = [t for t in closed if t["direction"] == "SHORT"]
-    direction_stats = {
-        "LONG": {
-            "count": len(long_trades),
-            "win_rate": round(len([t for t in long_trades if t["status"] == "win"]) / len(long_trades) * 100, 1) if long_trades else 0,
-            "pnl": round(sum(t["pnl"] or 0 for t in long_trades), 2),
-        },
-        "SHORT": {
-            "count": len(short_trades),
-            "win_rate": round(len([t for t in short_trades if t["status"] == "win"]) / len(short_trades) * 100, 1) if short_trades else 0,
-            "pnl": round(sum(t["pnl"] or 0 for t in short_trades), 2),
-        },
-    }
-
-    return {
-        "period_days": days,
-        "total_trades": len(trades),
-        "closed_trades": len(closed),
-        "open_trades": len([t for t in trades if t["status"] == "open"]),
-        "wins": len(wins),
-        "losses": len(losses),
-        "win_rate": round(win_rate, 1),
-        "total_pnl": round(total_pnl, 2),
-        "avg_score": round(avg_score, 1),
-        "avg_rr": round(avg_rr, 2),
-        "score_analysis": score_analysis,
-        "pair_breakdown": pairs,
-        "direction_stats": direction_stats,
-        "trades": trades,
-    }
+def get_analytics(days: int | None = None,
+                  start_from: Optional[str] = None,
+                  end_to: Optional[str] = None):
+    return _compute_analytics_range(start_from, end_to, days)
 
 
 # --- Strategies ---
@@ -866,9 +800,24 @@ def latest_snapshot():
 
 # --- Reviews ---
 
-def _compute_analytics_range(start_iso=None, end_iso=None, days=None):
-    # Replaced in Task 11 with the analytics module. Stub uses legacy get_analytics.
-    return get_analytics(days=days or 14)
+def _compute_analytics_range(start_from: Optional[str] = None,
+                              end_to: Optional[str] = None,
+                              days: Optional[int] = None) -> dict:
+    from analytics import compute_analytics
+    if start_from and end_to:
+        rows = db_trades_between(start_from, end_to)
+        period_start, period_end = start_from, end_to
+        period_days = None
+    else:
+        d = days or 14
+        cutoff = (datetime.utcnow() - timedelta(days=d)).isoformat()
+        rows = db_trades_since(cutoff)
+        period_start = cutoff
+        period_end = datetime.utcnow().isoformat()
+        period_days = d
+    trades = [_parse_trade(r) for r in rows]
+    return compute_analytics(trades, days=period_days,
+                              period_start=period_start, period_end=period_end)
 
 
 @app.get("/api/reviews")
