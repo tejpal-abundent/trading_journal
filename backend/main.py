@@ -27,9 +27,11 @@ if USE_TURSO:
         init_tables()
 
     def db_create_trade(data: dict) -> dict:
+        cols = list(data.keys())
+        placeholders = ",".join(["?"] * len(cols))
         execute(
-            "INSERT INTO trades (pair, direction, timeframe, setup_score, verdict, criteria_checked, notes) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [data["pair"], data["direction"], data["timeframe"], data["setup_score"], data["verdict"], json.dumps(data["criteria_checked"]), data.get("notes", "")]
+            f"INSERT INTO trades ({','.join(cols)}) VALUES ({placeholders})",
+            [data[c] for c in cols],
         )
         return fetch_one("SELECT * FROM trades ORDER BY id DESC LIMIT 1")
 
@@ -122,19 +124,40 @@ else:
     def _trade_to_dict(t):
         return {
             "id": t.id, "pair": t.pair, "direction": t.direction, "timeframe": t.timeframe,
+            "strategy": t.strategy or "Zone Failure",
             "setup_score": t.setup_score, "verdict": t.verdict,
             "criteria_checked": t.criteria_checked if isinstance(t.criteria_checked, list) else json.loads(t.criteria_checked or "[]"),
-            "notes": t.notes or "", "status": t.status or "open",
+            "notes": t.notes or "",
+            "planned_entry": t.planned_entry, "planned_stop": t.planned_stop,
+            "planned_target": t.planned_target, "planned_rr": t.planned_rr,
+            "status": t.status or "planned",
+            "retroactive": int(t.retroactive or 0),
             "entry_price": t.entry_price, "exit_price": t.exit_price,
             "stop_loss": t.stop_loss, "take_profit": t.take_profit,
+            "position_size": t.position_size, "account_size": t.account_size,
+            "risk_dollars": t.risk_dollars, "risk_percent": t.risk_percent,
+            "entry_timing": t.entry_timing,
+            "emotions_entry": t.emotions_entry or ",",
+            "feelings_entry": t.feelings_entry or "",
+            "skip_reason": t.skip_reason or "",
+            "partial_exits": t.partial_exits or "[]",
             "pnl": t.pnl, "pnl_percent": t.pnl_percent, "rr_achieved": t.rr_achieved,
+            "rules_followed": t.rules_followed,
+            "mistake_tags": t.mistake_tags or ",",
+            "emotions_exit": t.emotions_exit or ",",
+            "feelings_exit": t.feelings_exit or "",
             "lessons": t.lessons or "",
+            "chart_url": t.chart_url or "",
             "created_at": str(t.created_at) if t.created_at else None,
             "closed_at": str(t.closed_at) if t.closed_at else None,
         }
 
     def db_create_trade(data: dict) -> dict:
         db = _get_db()
+        if isinstance(data.get("criteria_checked"), str):
+            try:
+                data["criteria_checked"] = json.loads(data["criteria_checked"])
+            except: pass
         t = Trade(**data)
         db.add(t); db.commit(); db.refresh(t)
         result = _trade_to_dict(t)
@@ -188,33 +211,58 @@ else:
 # --- Helpers ---
 
 def _parse_trade(row: dict) -> dict:
-    """Normalize a trade row from Turso (strings) to proper types."""
     if not row:
         return row
     cc = row.get("criteria_checked", "[]")
     if isinstance(cc, str):
-        try:
-            cc = json.loads(cc)
-        except:
-            cc = []
+        try: cc = json.loads(cc)
+        except: cc = []
+
+    pe = row.get("partial_exits", "[]")
+    if isinstance(pe, str):
+        try: pe = json.loads(pe)
+        except: pe = []
+
+    def _f(key):
+        v = row.get(key)
+        return float(v) if v not in (None, "") else None
+
+    def _i(key):
+        v = row.get(key)
+        return int(v) if v not in (None, "") else None
+
+    def _tags(key):
+        raw = row.get(key) or ","
+        return [t for t in raw.split(",") if t]
+
     return {
         "id": int(row["id"]),
-        "pair": row["pair"],
-        "direction": row["direction"],
-        "timeframe": row["timeframe"],
+        "pair": row["pair"], "direction": row["direction"], "timeframe": row["timeframe"],
+        "strategy": row.get("strategy") or "Zone Failure",
         "setup_score": int(row["setup_score"]),
         "verdict": row["verdict"],
         "criteria_checked": cc,
         "notes": row.get("notes") or "",
-        "status": row.get("status") or "open",
-        "entry_price": float(row["entry_price"]) if row.get("entry_price") else None,
-        "exit_price": float(row["exit_price"]) if row.get("exit_price") else None,
-        "stop_loss": float(row["stop_loss"]) if row.get("stop_loss") else None,
-        "take_profit": float(row["take_profit"]) if row.get("take_profit") else None,
-        "pnl": float(row["pnl"]) if row.get("pnl") else None,
-        "pnl_percent": float(row["pnl_percent"]) if row.get("pnl_percent") else None,
-        "rr_achieved": float(row["rr_achieved"]) if row.get("rr_achieved") else None,
+        "planned_entry": _f("planned_entry"), "planned_stop": _f("planned_stop"),
+        "planned_target": _f("planned_target"), "planned_rr": _f("planned_rr"),
+        "status": row.get("status") or "planned",
+        "retroactive": bool(_i("retroactive") or 0),
+        "entry_price": _f("entry_price"), "exit_price": _f("exit_price"),
+        "stop_loss": _f("stop_loss"), "take_profit": _f("take_profit"),
+        "position_size": _f("position_size"), "account_size": _f("account_size"),
+        "risk_dollars": _f("risk_dollars"), "risk_percent": _f("risk_percent"),
+        "entry_timing": row.get("entry_timing"),
+        "emotions_entry": _tags("emotions_entry"),
+        "feelings_entry": row.get("feelings_entry") or "",
+        "skip_reason": row.get("skip_reason") or "",
+        "partial_exits": pe,
+        "pnl": _f("pnl"), "pnl_percent": _f("pnl_percent"), "rr_achieved": _f("rr_achieved"),
+        "rules_followed": (None if row.get("rules_followed") is None else bool(_i("rules_followed"))),
+        "mistake_tags": _tags("mistake_tags"),
+        "emotions_exit": _tags("emotions_exit"),
+        "feelings_exit": row.get("feelings_exit") or "",
         "lessons": row.get("lessons") or "",
+        "chart_url": row.get("chart_url") or "",
         "created_at": row.get("created_at"),
         "closed_at": row.get("closed_at"),
     }
@@ -222,26 +270,122 @@ def _parse_trade(row: dict) -> dict:
 
 # --- Schemas ---
 
-class TradeCreate(BaseModel):
+class TradeCreatePlan(BaseModel):
     pair: str
     direction: str
     timeframe: str
+    strategy: str = "Zone Failure"
     setup_score: int
     verdict: str
     criteria_checked: list[str]
     notes: str = ""
+    planned_entry: Optional[float] = None
+    planned_stop: Optional[float] = None
+    planned_target: Optional[float] = None
+    planned_rr: Optional[float] = None
 
 
-class TradeUpdate(BaseModel):
-    status: Optional[str] = None
-    entry_price: Optional[float] = None
-    exit_price: Optional[float] = None
-    stop_loss: Optional[float] = None
+class TradeEnter(BaseModel):
+    entry_price: float
+    stop_loss: float
     take_profit: Optional[float] = None
+    position_size: float
+    account_size: float
+    entry_timing: Optional[str] = None
+    emotions_entry: list[str] = []
+    feelings_entry: str = ""
+
+
+class TradeSkip(BaseModel):
+    skip_reason: str
+    emotions_entry: list[str] = []
+
+
+class TradeClose(BaseModel):
+    status: str
+    exit_price: float
     pnl: Optional[float] = None
     pnl_percent: Optional[float] = None
     rr_achieved: Optional[float] = None
+    rules_followed: Optional[bool] = None
+    mistake_tags: list[str] = []
+    emotions_exit: list[str] = []
+    feelings_exit: str = ""
+    lessons: str = ""
+    chart_url: str = ""
+    partial_exits: list[dict] = []
+
+
+class TradeRetroactive(BaseModel):
+    pair: str
+    direction: str
+    timeframe: str
+    strategy: str = "Zone Failure"
+    setup_score: int
+    verdict: str
+    criteria_checked: list[str]
+    notes: str = ""
+    planned_entry: Optional[float] = None
+    planned_stop: Optional[float] = None
+    planned_target: Optional[float] = None
+    planned_rr: Optional[float] = None
+    entry_price: float
+    stop_loss: float
+    take_profit: Optional[float] = None
+    position_size: Optional[float] = None
+    account_size: Optional[float] = None
+    entry_timing: Optional[str] = None
+    emotions_entry: list[str] = []
+    feelings_entry: str = ""
+    status: str
+    exit_price: float
+    pnl: Optional[float] = None
+    pnl_percent: Optional[float] = None
+    rr_achieved: Optional[float] = None
+    rules_followed: Optional[bool] = None
+    mistake_tags: list[str] = []
+    emotions_exit: list[str] = []
+    feelings_exit: str = ""
+    lessons: str = ""
+    chart_url: str = ""
+    partial_exits: list[dict] = []
+
+
+class TradeUpdate(BaseModel):
+    notes: Optional[str] = None
+    planned_entry: Optional[float] = None
+    planned_stop: Optional[float] = None
+    planned_target: Optional[float] = None
+    planned_rr: Optional[float] = None
+    status: Optional[str] = None
+    entry_price: Optional[float] = None
+    stop_loss: Optional[float] = None
+    take_profit: Optional[float] = None
+    exit_price: Optional[float] = None
+    position_size: Optional[float] = None
+    account_size: Optional[float] = None
+    entry_timing: Optional[str] = None
+    emotions_entry: Optional[list[str]] = None
+    feelings_entry: Optional[str] = None
+    skip_reason: Optional[str] = None
+    partial_exits: Optional[list[dict]] = None
+    pnl: Optional[float] = None
+    pnl_percent: Optional[float] = None
+    rr_achieved: Optional[float] = None
+    rules_followed: Optional[bool] = None
+    mistake_tags: Optional[list[str]] = None
+    emotions_exit: Optional[list[str]] = None
+    feelings_exit: Optional[str] = None
     lessons: Optional[str] = None
+    chart_url: Optional[str] = None
+
+
+def _tags_to_db(tags: list[str]) -> str:
+    """Encode a tag list as a comma-wrapped string. Empty list -> ','."""
+    if not tags:
+        return ","
+    cleaned = [t.strip() for t in tags if t and t.strip()]
+    return "," + ",".join(cleaned) + "," if cleaned else ","
 
 
 # --- Routes ---
@@ -252,8 +396,11 @@ def health():
 
 
 @app.post("/api/trades")
-def create_trade(trade: TradeCreate):
-    row = db_create_trade(trade.model_dump())
+def create_trade(trade: TradeCreatePlan):
+    data = trade.model_dump()
+    data["criteria_checked"] = json.dumps(data["criteria_checked"])
+    data["status"] = "planned"
+    row = db_create_trade(data)
     return _parse_trade(row)
 
 
