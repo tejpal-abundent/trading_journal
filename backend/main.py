@@ -76,6 +76,40 @@ else:
     def startup():
         from models import Base as ModelBase
         ModelBase.metadata.create_all(bind=engine)
+        # Run shared migrations against raw connection
+        from migrations import run_migrations
+        from sqlalchemy import text
+
+        def _exec(sql, args=None):
+            with engine.begin() as conn:
+                if args:
+                    out = sql
+                    params = {}
+                    i = 0
+                    while "?" in out:
+                        out = out.replace("?", f":p{i}", 1)
+                        params[f"p{i}"] = args[i]
+                        i += 1
+                    conn.execute(text(out), params)
+                else:
+                    conn.execute(text(sql))
+
+        def _fetch_one(sql, args=None):
+            with engine.connect() as conn:
+                if args:
+                    out = sql
+                    params = {}
+                    i = 0
+                    while "?" in out:
+                        out = out.replace("?", f":p{i}", 1)
+                        params[f"p{i}"] = args[i]
+                        i += 1
+                    row = conn.execute(text(out), params).mappings().first()
+                else:
+                    row = conn.execute(text(sql)).mappings().first()
+                return dict(row) if row else None
+
+        run_migrations(_exec, _fetch_one)
 
     def _get_db():
         db = SessionLocal()

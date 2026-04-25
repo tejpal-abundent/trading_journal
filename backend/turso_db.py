@@ -76,6 +76,7 @@ def fetch_one(sql: str, args=None):
 
 
 def init_tables():
+    # Ensure trades table exists (v1 schema is fine — migrations.py will ALTER it)
     execute("""
         CREATE TABLE IF NOT EXISTS trades (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -99,3 +100,5 @@ def init_tables():
             closed_at TEXT
         )
     """)
+    from migrations import run_migrations
+    run_migrations(execute, fetch_one)
