@@ -12,6 +12,10 @@ def _client(tmp_path, monkeypatch):
             sys.modules.pop(m)
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
     import main
+    db_path = os.path.join(os.path.dirname(main.__file__), "trading_journal.db")
+    if os.path.exists(db_path):
+        os.remove(db_path)
+    main.startup()
     return TestClient(main.app)
 
 

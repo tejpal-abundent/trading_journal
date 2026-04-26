@@ -48,6 +48,9 @@ export interface Trade {
   feelings_exit: string
   lessons: string
   chart_url: string
+  confluences: string[]
+  mfe_r: number | null
+  mae_r: number | null
   created_at: string
   closed_at: string | null
 }
@@ -124,6 +127,17 @@ export interface AnalyticsData {
     total_pnl?: number
     filter?: Record<string, unknown>
   }
+  confluence_impact: { tag: string; count: number; win_rate: number; avg_pnl: number; total_pnl: number }[]
+  mfe_mae_analysis: {
+    count: number
+    avg_mfe_all?: number | null
+    avg_mfe_winners?: number | null
+    avg_mfe_losers?: number | null
+    avg_mae_winners?: number | null
+    avg_mae_losers?: number | null
+    max_mfe_all?: number | null
+  }
+  confluence_filter: string[]
   trades: Trade[]
 }
 
@@ -146,6 +160,7 @@ export const api = {
     setup_score: number; verdict: string; criteria_checked: string[]; notes?: string;
     planned_entry?: number | null; planned_stop?: number | null;
     planned_target?: number | null; planned_rr?: number | null;
+    confluences?: string[];
   }) => request<Trade>('/trades', { method: 'POST', body: JSON.stringify(data) }),
 
   enterTrade: (id: number, data: {
@@ -165,6 +180,7 @@ export const api = {
     mistake_tags?: string[]; emotions_exit?: string[];
     feelings_exit?: string; lessons?: string; chart_url?: string;
     partial_exits?: PartialExit[];
+    mfe_r?: number | null; mae_r?: number | null;
   }) => request<Trade>(`/trades/${id}/close`, { method: 'POST', body: JSON.stringify(data) }),
 
   createRetroactiveTrade: (data: Record<string, unknown>) =>
@@ -202,11 +218,12 @@ export const api = {
   deleteReview: (id: number) =>
     request<{ ok: boolean }>(`/reviews/${id}`, { method: 'DELETE' }),
 
-  getAnalytics: (params: { days?: number; from?: string; to?: string } = {}) => {
+  getAnalytics: (params: { days?: number; from?: string; to?: string; confluences?: string[] } = {}) => {
     const q = new URLSearchParams()
     if (params.days) q.set('days', String(params.days))
     if (params.from) q.set('start_from', params.from)
     if (params.to) q.set('end_to', params.to)
+    if (params.confluences && params.confluences.length) q.set('confluences', params.confluences.join(','))
     return request<AnalyticsData>(`/analytics${q.toString() ? `?${q.toString()}` : ''}`)
   },
 }

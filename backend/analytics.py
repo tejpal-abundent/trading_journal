@@ -5,7 +5,8 @@ RISK_THRESHOLD_PCT = 2.0
 
 
 def compute_analytics(trades: list[dict], days: int | None = None,
-                      period_start: str | None = None, period_end: str | None = None) -> dict:
+                      period_start: str | None = None, period_end: str | None = None,
+                      confluence_filter: list[str] | None = None) -> dict:
     closed = [t for t in trades if t["status"] in ("win", "loss", "breakeven")]
     wins = [t for t in closed if t["status"] == "win"]
     losses = [t for t in closed if t["status"] == "loss"]
@@ -22,6 +23,7 @@ def compute_analytics(trades: list[dict], days: int | None = None,
     return {
         "period_days": days,
         "period_start": period_start, "period_end": period_end,
+        "confluence_filter": confluence_filter or [],
         "total_trades": len(trades),
         "closed_trades": len(closed),
         "open_trades": len(entered_open),
@@ -45,6 +47,8 @@ def compute_analytics(trades: list[dict], days: int | None = None,
         "timing_impact": _timing_impact(closed),
         "strategy_breakdown": _strategy_breakdown(closed),
         "edge_composite": _edge_composite(closed),
+        "confluence_impact": _tag_impact(closed, "confluences"),
+        "mfe_mae_analysis": _mfe_mae_analysis(closed),
         "trades": trades,
     }
 
@@ -142,7 +146,7 @@ def _risk_discipline(trades):
 def _tag_impact(closed, key):
     by_tag = defaultdict(lambda: {"count": 0, "wins": 0, "pnl_sum": 0.0})
     for t in closed:
-        tags = t[key] or []
+        tags = t.get(key) or []
         if not tags:
             if key == "mistake_tags":
                 by_tag["(none)"]["count"] += 1
@@ -199,6 +203,30 @@ def _score_bucket_label(score):
     if score >= 70: return "B"
     if score >= 55: return "C"
     return "D"
+
+
+def _mfe_mae_analysis(closed):
+    with_mfe = [t for t in closed if t.get("mfe_r") is not None]
+    with_mae = [t for t in closed if t.get("mae_r") is not None]
+    if not with_mfe and not with_mae:
+        return {"count": 0}
+
+    wins = [t for t in closed if t["status"] == "win"]
+    losses = [t for t in closed if t["status"] == "loss"]
+
+    def _avg(rows, key):
+        vals = [t[key] for t in rows if t.get(key) is not None]
+        return round(sum(vals) / len(vals), 2) if vals else None
+
+    return {
+        "count": len(with_mfe) + len(with_mae),
+        "avg_mfe_all": _avg(closed, "mfe_r"),
+        "avg_mfe_winners": _avg(wins, "mfe_r"),
+        "avg_mfe_losers":  _avg(losses, "mfe_r"),
+        "avg_mae_winners": _avg(wins, "mae_r"),
+        "avg_mae_losers":  _avg(losses, "mae_r"),
+        "max_mfe_all": max((t["mfe_r"] for t in with_mfe), default=None),
+    }
 
 
 def _edge_composite(closed):

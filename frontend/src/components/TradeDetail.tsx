@@ -41,6 +41,16 @@ export default function TradeDetail({ trade, onClose, onChanged }: Props) {
           {trade.planned_rr != null && ` · R:R ${trade.planned_rr}`}
         </div>
       )}
+      {trade.confluences && trade.confluences.length > 0 && (
+        <div className="mt-2">
+          <div className="text-xs text-2 mb-1">Confluences</div>
+          <div className="chip-row">
+            {trade.confluences.map(c => (
+              <span key={c} className="chip selected">{c.replace(/_/g, " ")}</span>
+            ))}
+          </div>
+        </div>
+      )}
       {trade.notes && <div className="text-sm text-2 mt-2" style={{ fontStyle: "italic" }}>{trade.notes}</div>}
     </div>
   );
@@ -82,6 +92,11 @@ export default function TradeDetail({ trade, onClose, onChanged }: Props) {
       {" "}· Exit {trade.exit_price ?? "—"}
       {trade.pnl != null && <> · P/L ${trade.pnl}</>}
       {trade.rr_achieved != null && <> · R:R {trade.rr_achieved}</>}
+      {(trade.mfe_r != null || trade.mae_r != null) && (
+        <div className="text-xs text-2 mt-1">
+          MFE {trade.mfe_r != null ? `${trade.mfe_r}R` : "—"} · MAE {trade.mae_r != null ? `${trade.mae_r}R` : "—"}
+        </div>
+      )}
       <div className="mt-1">
         Plan followed: <b>{trade.rules_followed === true ? "Yes" : trade.rules_followed === false ? "No" : "—"}</b>
       </div>

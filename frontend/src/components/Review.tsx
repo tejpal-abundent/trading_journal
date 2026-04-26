@@ -21,16 +21,19 @@ export default function Review() {
   const [reviewBody, setReviewBody] = useState("");
   const [savingReview, setSavingReview] = useState(false);
   const [activeReview, setActiveReview] = useState<ReviewT | null>(null);
+  const [selectedConfluences, setSelectedConfluences] = useState<string[]>([]);
+  const [allConfluences, setAllConfluences] = useState<string[]>([]);
 
   const load = async () => {
     setLoading(true);
     try {
       let d: AnalyticsData;
+      const filter = selectedConfluences.length ? { confluences: selectedConfluences } : {};
       if (preset === "custom" && from && to) {
-        d = await api.getAnalytics({ from, to });
+        d = await api.getAnalytics({ from, to, ...filter });
       } else if (preset !== "custom") {
         const days = PRESETS.find(p => p.id === preset)?.days || 14;
-        d = await api.getAnalytics({ days });
+        d = await api.getAnalytics({ days, ...filter });
       } else {
         return;
       }
@@ -40,8 +43,19 @@ export default function Review() {
     }
   };
 
-  useEffect(() => { load(); }, [preset, from, to]);
+  useEffect(() => { load(); }, [preset, from, to, selectedConfluences]);
   useEffect(() => { api.listReviews().then(setReviews); }, []);
+  useEffect(() => {
+    api.listTrades().then(trades => {
+      const counts = new Map<string, number>();
+      trades.forEach(t => (t.confluences || []).forEach(c => counts.set(c, (counts.get(c) || 0) + 1)));
+      const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).map(([c]) => c);
+      setAllConfluences(sorted);
+    }).catch(() => {});
+  }, []);
+
+  const toggleConfluence = (c: string) =>
+    setSelectedConfluences(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
 
   const saveReview = async () => {
     if (!data || !reviewBody.trim() || savingReview) return;
@@ -83,6 +97,27 @@ export default function Review() {
           </>
         )}
       </div>
+
+      {allConfluences.length > 0 && (
+        <div className="card mb-3" style={{ padding: "10px 12px" }}>
+          <div className="text-xs text-2 mb-1">
+            Filter by confluences (intersection — trades with <b>all</b> selected tags)
+          </div>
+          <div className="chip-row">
+            {allConfluences.map(c => (
+              <span key={c}
+                className={`chip ${selectedConfluences.includes(c) ? "selected" : ""}`}
+                onClick={() => toggleConfluence(c)}>
+                {c.replace(/_/g, " ")}
+              </span>
+            ))}
+            {selectedConfluences.length > 0 && (
+              <span className="chip" style={{ color: "var(--red)" }}
+                onClick={() => setSelectedConfluences([])}>clear</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {activeReview && (
         <div className="card" style={{ background: "var(--blue-bg)" }}>
@@ -191,6 +226,60 @@ function Stats({ d }: { d: AnalyticsData }) {
           ))}
         </div>
       </div>
+
+      {d.confluence_impact && d.confluence_impact.length > 0 && (
+        <div className="card">
+          <h4 className="text-sm mb-2">Confluence impact</h4>
+          <div className="text-xs text-2 mb-2">
+            Win rate / P/L when each confluence was tagged on the plan. Use this to find the time-of-day, structure, or context combos that work for you.
+          </div>
+          <table className="text-sm" style={{ width: "100%" }}>
+            <thead>
+              <tr>
+                <th align="left">Confluence</th><th>Count</th><th>Win %</th><th>Total P/L</th>
+              </tr>
+            </thead>
+            <tbody>
+              {d.confluence_impact.map(r => (
+                <tr key={r.tag}>
+                  <td>{r.tag.replace(/_/g, " ")}</td>
+                  <td align="center">{r.count}</td>
+                  <td align="center">{r.win_rate}%</td>
+                  <td align="right" style={{ color: r.total_pnl >= 0 ? "var(--green)" : "var(--red)" }}>
+                    ${r.total_pnl}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {d.mfe_mae_analysis && d.mfe_mae_analysis.count > 0 && (
+        <div className="card">
+          <h4 className="text-sm mb-2">MFE / MAE analysis</h4>
+          <div className="text-xs text-2 mb-2">
+            <b>Avg MFE on winners</b> tells you if you're cutting winners early. <b>Avg MAE on winners</b> tells you if your entries could be tighter.
+          </div>
+          <div className="text-sm" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+            {d.mfe_mae_analysis.avg_mfe_winners != null && (
+              <div>Avg MFE (winners): <b>{d.mfe_mae_analysis.avg_mfe_winners}R</b></div>
+            )}
+            {d.mfe_mae_analysis.avg_mae_winners != null && (
+              <div>Avg MAE (winners): <b>{d.mfe_mae_analysis.avg_mae_winners}R</b></div>
+            )}
+            {d.mfe_mae_analysis.avg_mfe_losers != null && (
+              <div>Avg MFE (losers): <b>{d.mfe_mae_analysis.avg_mfe_losers}R</b></div>
+            )}
+            {d.mfe_mae_analysis.avg_mae_losers != null && (
+              <div>Avg MAE (losers): <b>{d.mfe_mae_analysis.avg_mae_losers}R</b></div>
+            )}
+            {d.mfe_mae_analysis.max_mfe_all != null && (
+              <div>Best MFE seen: <b>{d.mfe_mae_analysis.max_mfe_all}R</b></div>
+            )}
+          </div>
+        </div>
+      )}
 
       {d.mistake_impact.length > 0 && (
         <div className="card">
