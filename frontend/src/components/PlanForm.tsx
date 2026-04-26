@@ -47,6 +47,7 @@ export default function PlanForm() {
 
   const strategy = strategies.find(s => s.id === strategyId);
   const cores = strategy?.is_core_required || [];
+  const hasCriteria = !!strategy && strategy.criteria.length > 0;
 
   const toggle = (id: string) => setChecked(p => ({ ...p, [id]: !p[id] }));
 
@@ -57,6 +58,7 @@ export default function PlanForm() {
 
   const verdict = (() => {
     if (!strategy) return { text: "Select a strategy", color: "var(--text2)" };
+    if (!hasCriteria) return { text: "Plan ready — qualify via confluences", color: "var(--text2)" };
     if (score >= 85 && coresMet) return { text: "A+ SETUP -- Full size, this is your edge", color: "var(--green)" };
     if (score >= 70 && coresMet) return { text: "B SETUP -- Reduced size, solid enough",      color: "var(--yellow)" };
     if (score >= 55 && coresMet) return { text: "C SETUP -- Marginal, consider skipping",     color: "#D85A30" };
@@ -146,7 +148,7 @@ export default function PlanForm() {
         ))}
       </div>
 
-      <div className="flex col gap-2">
+      {hasCriteria && <div className="flex col gap-2">
         {strategy.criteria.map(c => {
           const isCore = cores.includes(c.id);
           return (
@@ -184,10 +186,10 @@ export default function PlanForm() {
             </div>
           );
         })}
-      </div>
+      </div>}
 
       <div className="card mt-3" style={{ textAlign: "center", borderColor: verdict.color, borderWidth: 2 }}>
-        <div style={{ fontSize: 40, fontWeight: 500, color: verdict.color }}>{score}/100</div>
+        {hasCriteria && <div style={{ fontSize: 40, fontWeight: 500, color: verdict.color }}>{score}/100</div>}
         <div style={{ fontSize: 15, fontWeight: 500, color: verdict.color, marginTop: 4 }}>{verdict.text}</div>
         {form.pair && <div className="text-sm text-2 mt-2">{form.pair} | {form.dir} | {form.tf}</div>}
       </div>

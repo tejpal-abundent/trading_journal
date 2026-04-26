@@ -86,15 +86,24 @@ def run_migrations(execute_fn, fetch_one_fn):
             if "duplicate column" not in str(e).lower():
                 raise
 
-    # 3. Seed Zone Failure strategy if empty
+    # 3. Seed Zone Failure strategy if empty (no default criteria — user qualifies trades via confluences)
     row = fetch_one_fn("SELECT COUNT(*) AS c FROM strategies")
     if int(row["c"]) == 0:
         execute_fn(
             "INSERT INTO strategies (name, criteria, is_core_required) VALUES (?, ?, ?)",
-            ["Zone Failure", json.dumps(ZONE_FAILURE_CRITERIA), json.dumps(ZONE_FAILURE_CORE)],
+            ["Zone Failure", "[]", "[]"],
         )
 
-    # 4. One-time status backfill
+    # 4. One-time: drop Zone Failure default criteria (user moved to confluence-based qualification)
+    already = fetch_one_fn("SELECT name FROM _migrations WHERE name = ?", ["v3_empty_zone_failure_criteria"])
+    if not already:
+        execute_fn(
+            "UPDATE strategies SET criteria = ?, is_core_required = ? WHERE name = ?",
+            ["[]", "[]", "Zone Failure"],
+        )
+        execute_fn("INSERT INTO _migrations (name) VALUES (?)", ["v3_empty_zone_failure_criteria"])
+
+    # 5. One-time status backfill
     already = fetch_one_fn("SELECT name FROM _migrations WHERE name = ?", ["v2_status_backfill"])
     if not already:
         # Open trades with entry_price -> entered, retroactive=1
