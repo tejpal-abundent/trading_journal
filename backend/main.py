@@ -153,6 +153,8 @@ else:
             "feelings_exit": t.feelings_exit or "",
             "lessons": t.lessons or "",
             "chart_url": t.chart_url or "",
+            "confluences": t.confluences or ",",
+            "mfe_r": t.mfe_r, "mae_r": t.mae_r,
             "created_at": str(t.created_at) if t.created_at else None,
             "closed_at": str(t.closed_at) if t.closed_at else None,
         }
@@ -317,6 +319,8 @@ def _parse_trade(row: dict) -> dict:
         "feelings_exit": row.get("feelings_exit") or "",
         "lessons": row.get("lessons") or "",
         "chart_url": row.get("chart_url") or "",
+        "confluences": _tags("confluences"),
+        "mfe_r": _f("mfe_r"), "mae_r": _f("mae_r"),
         "created_at": row.get("created_at"),
         "closed_at": row.get("closed_at"),
     }
@@ -337,6 +341,7 @@ class TradeCreatePlan(BaseModel):
     planned_stop: Optional[float] = None
     planned_target: Optional[float] = None
     planned_rr: Optional[float] = None
+    confluences: list[str] = []
 
 
 class TradeEnter(BaseModel):
@@ -368,6 +373,8 @@ class TradeClose(BaseModel):
     lessons: str = ""
     chart_url: str = ""
     partial_exits: list[dict] = []
+    mfe_r: Optional[float] = None
+    mae_r: Optional[float] = None
 
 
 class TradeRetroactive(BaseModel):
@@ -403,6 +410,9 @@ class TradeRetroactive(BaseModel):
     lessons: str = ""
     chart_url: str = ""
     partial_exits: list[dict] = []
+    confluences: list[str] = []
+    mfe_r: Optional[float] = None
+    mae_r: Optional[float] = None
 
 
 class TradeUpdate(BaseModel):
@@ -432,6 +442,9 @@ class TradeUpdate(BaseModel):
     feelings_exit: Optional[str] = None
     lessons: Optional[str] = None
     chart_url: Optional[str] = None
+    confluences: Optional[list[str]] = None
+    mfe_r: Optional[float] = None
+    mae_r: Optional[float] = None
 
 
 def _tags_to_db(tags: list[str]) -> str:
@@ -522,6 +535,7 @@ def health():
 def create_trade(trade: TradeCreatePlan):
     data = trade.model_dump()
     data["criteria_checked"] = json.dumps(data["criteria_checked"])
+    data["confluences"] = _tags_to_db(data.get("confluences") or [])
     data["status"] = "planned"
     row = db_create_trade(data)
     return _parse_trade(row)
@@ -552,7 +566,7 @@ def update_trade(trade_id: int, data: TradeUpdate):
 
         update_data = data.model_dump(exclude_unset=True)
 
-        for key in ("emotions_entry", "emotions_exit", "mistake_tags"):
+        for key in ("emotions_entry", "emotions_exit", "mistake_tags", "confluences"):
             if key in update_data:
                 update_data[key] = _tags_to_db(update_data[key] or [])
         if "partial_exits" in update_data:
@@ -642,6 +656,8 @@ def close_trade(trade_id: int, data: TradeClose):
         "lessons": data.lessons or "",
         "chart_url": data.chart_url or "",
         "partial_exits": json.dumps(data.partial_exits or []),
+        "mfe_r": data.mfe_r,
+        "mae_r": data.mae_r,
         "closed_at": datetime.utcnow(),
     }
     row = db_update_trade(trade_id, update)
@@ -677,6 +693,8 @@ def create_retroactive_trade(trade: TradeRetroactive):
         "feelings_exit": trade.feelings_exit,
         "lessons": trade.lessons, "chart_url": trade.chart_url,
         "partial_exits": json.dumps(trade.partial_exits or []),
+        "confluences": _tags_to_db(trade.confluences or []),
+        "mfe_r": trade.mfe_r, "mae_r": trade.mae_r,
         "closed_at": datetime.utcnow(),
     }
     row = db_create_trade(data)
@@ -695,8 +713,10 @@ def delete_trade(trade_id: int):
 @app.get("/api/analytics")
 def get_analytics(days: int | None = None,
                   start_from: Optional[str] = None,
-                  end_to: Optional[str] = None):
-    return _compute_analytics_range(start_from, end_to, days)
+                  end_to: Optional[str] = None,
+                  confluences: Optional[str] = None):
+    confluence_filter = [c.strip() for c in confluences.split(",") if c.strip()] if confluences else []
+    return _compute_analytics_range(start_from, end_to, days, confluence_filter)
 
 
 # --- Strategies ---
@@ -802,7 +822,8 @@ def latest_snapshot():
 
 def _compute_analytics_range(start_from: Optional[str] = None,
                               end_to: Optional[str] = None,
-                              days: Optional[int] = None) -> dict:
+                              days: Optional[int] = None,
+                              confluence_filter: Optional[list[str]] = None) -> dict:
     from analytics import compute_analytics
     if start_from and end_to:
         rows = db_trades_between(start_from, end_to)
@@ -816,8 +837,12 @@ def _compute_analytics_range(start_from: Optional[str] = None,
         period_end = datetime.utcnow().isoformat()
         period_days = d
     trades = [_parse_trade(r) for r in rows]
+    if confluence_filter:
+        trades = [t for t in trades
+                  if all(c in (t.get("confluences") or []) for c in confluence_filter)]
     return compute_analytics(trades, days=period_days,
-                              period_start=period_start, period_end=period_end)
+                              period_start=period_start, period_end=period_end,
+                              confluence_filter=confluence_filter or [])
 
 
 @app.get("/api/reviews")

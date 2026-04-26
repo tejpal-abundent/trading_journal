@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, Strategy } from "../api";
 import StrategyManager from "./StrategyManager";
+import ConfluenceInput from "./ConfluenceInput";
 
 interface FormState {
   pair: string; tf: string; dir: "LONG" | "SHORT";
@@ -19,6 +20,8 @@ export default function PlanForm() {
   const [strategyId, setStrategyId] = useState<number | null>(null);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [form, setForm] = useState<FormState>(initialForm);
+  const [confluences, setConfluences] = useState<string[]>([]);
+  const [confluenceSuggestions, setConfluenceSuggestions] = useState<string[]>([]);
   const [showDesc, setShowDesc] = useState<string | null>(null);
   const [showStrategies, setShowStrategies] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -32,6 +35,15 @@ export default function PlanForm() {
   };
 
   useEffect(() => { loadStrategies(); }, []);
+
+  useEffect(() => {
+    api.listTrades().then(trades => {
+      const counts = new Map<string, number>();
+      trades.forEach(t => (t.confluences || []).forEach(c => counts.set(c, (counts.get(c) || 0) + 1)));
+      const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).map(([c]) => c);
+      setConfluenceSuggestions(sorted);
+    }).catch(() => {});
+  }, []);
 
   const strategy = strategies.find(s => s.id === strategyId);
   const cores = strategy?.is_core_required || [];
@@ -60,7 +72,7 @@ export default function PlanForm() {
     return Math.round((Math.abs(t - e) / Math.abs(e - s)) * 100) / 100;
   })();
 
-  const reset = () => { setChecked({}); setForm(initialForm); };
+  const reset = () => { setChecked({}); setForm(initialForm); setConfluences([]); };
 
   const save = async () => {
     if (!form.pair || !strategy || saving) return;
@@ -78,7 +90,9 @@ export default function PlanForm() {
       if (form.planned_stop)   data.planned_stop   = parseFloat(form.planned_stop);
       if (form.planned_target) data.planned_target = parseFloat(form.planned_target);
       if (computedRR != null)  data.planned_rr     = computedRR;
+      if (confluences.length)  data.confluences    = confluences;
       await api.createPlan(data);
+      setConfluenceSuggestions(prev => Array.from(new Set([...confluences, ...prev])));
       setSaved(true);
       reset();
       setTimeout(() => setSaved(false), 2000);
@@ -200,6 +214,18 @@ export default function PlanForm() {
         {computedRR != null && (
           <div className="text-xs text-2 mt-2">Planned R:R = {computedRR}</div>
         )}
+      </div>
+
+      <div className="card mt-3">
+        <h3 className="text-sm font-500 mb-1">Confluences</h3>
+        <div className="text-xs text-2 mb-2">
+          Free-text tags layered on top of your strategy criteria — e.g. <i>london_open</i>, <i>htf_aligned</i>, <i>30min_reversal</i>. Used later to filter analytics ("when X is present, my win rate is Y").
+        </div>
+        <ConfluenceInput
+          value={confluences}
+          onChange={setConfluences}
+          suggestions={confluenceSuggestions}
+        />
       </div>
 
       <textarea

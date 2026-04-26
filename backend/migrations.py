@@ -37,6 +37,9 @@ V2_ALTERS = [
     "ALTER TABLE trades ADD COLUMN emotions_exit TEXT DEFAULT ','",
     "ALTER TABLE trades ADD COLUMN feelings_exit TEXT DEFAULT ''",
     "ALTER TABLE trades ADD COLUMN chart_url TEXT DEFAULT ''",
+    "ALTER TABLE trades ADD COLUMN confluences TEXT DEFAULT ','",
+    "ALTER TABLE trades ADD COLUMN mfe_r REAL",
+    "ALTER TABLE trades ADD COLUMN mae_r REAL",
 ]
 
 NEW_TABLES = [

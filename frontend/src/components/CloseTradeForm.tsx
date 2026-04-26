@@ -23,6 +23,8 @@ export default function CloseTradeForm({ trade, onSaved, onCancel }: Props) {
   const [lessons, setLessons] = useState(trade.lessons || "");
   const [chartUrl, setChartUrl] = useState(trade.chart_url || "");
   const [partials, setPartials] = useState<PartialExit[]>(trade.partial_exits || []);
+  const [mfeR, setMfeR] = useState(trade.mfe_r != null ? String(trade.mfe_r) : "");
+  const [maeR, setMaeR] = useState(trade.mae_r != null ? String(trade.mae_r) : "");
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
@@ -42,6 +44,8 @@ export default function CloseTradeForm({ trade, onSaved, onCancel }: Props) {
         lessons,
         chart_url: chartUrl,
         partial_exits: partials,
+        mfe_r: mfeR ? parseFloat(mfeR) : null,
+        mae_r: maeR ? parseFloat(maeR) : null,
       });
       onSaved(t);
     } catch (err) {
@@ -78,6 +82,24 @@ export default function CloseTradeForm({ trade, onSaved, onCancel }: Props) {
         <div className="grow">
           <label className="text-xs text-2">R:R</label>
           <input type="number" step="any" value={rr} onChange={e => setRr(e.target.value)} />
+        </div>
+      </div>
+
+      <div className="card" style={{ background: "var(--bg2)", padding: "10px 12px", marginBottom: 0 }}>
+        <div className="text-xs text-2 mb-1">
+          <b>MFE / MAE (in R-multiples)</b> — how far the trade went in your favor / against you, regardless of where you exited. Powers entry & target optimization.
+        </div>
+        <div className="flex gap-2">
+          <div className="grow">
+            <label className="text-xs text-2">MFE (max favorable, in R)</label>
+            <input type="number" step="any" placeholder="e.g. 1.8"
+              value={mfeR} onChange={e => setMfeR(e.target.value)} />
+          </div>
+          <div className="grow">
+            <label className="text-xs text-2">MAE (max adverse, in R)</label>
+            <input type="number" step="any" placeholder="e.g. 0.4"
+              value={maeR} onChange={e => setMaeR(e.target.value)} />
+          </div>
         </div>
       </div>
 
