@@ -63,8 +63,10 @@ def compute_analytics(trades: list[dict], days: int | None = None,
         "edge_composite": _edge_composite(closed),
         "confluence_impact": _tag_impact(closed, "confluences"),
         "mfe_mae_analysis": _mfe_mae_analysis(closed),
-        "sample_integrity": _sample_integrity(closed),
+        # NOTE: sample_integrity computed first; process_score reuses it
+        "sample_integrity": (si := _sample_integrity(closed)),
         "streak_expectations": _streak_expectations(closed),
+        "process_score": _process_score(closed, si),
         "trades": trades,
     }
 
@@ -342,6 +344,34 @@ def _streak_expectations(closed):
             "Markets have fat tails — expected streaks can underestimate "
             "real-world variance."
         ),
+    }
+
+
+def _process_score(closed, sample_integrity):
+    """Process scorecard: judge process, not outcomes.
+
+    composite = strict; same as sample_integrity.clean_pct.
+    Sub-scores are diagnostic so the user can see which leg drags it down.
+    """
+    rules_known = [t for t in closed if t["rules_followed"] is not None]
+    followed = [t for t in rules_known if t["rules_followed"]]
+    no_mistakes = [t for t in closed if not t["mistake_tags"]]
+
+    return {
+        "definition": (
+            "Strict: % of closed trades that satisfy ALL of "
+            "rules_followed AND no mistake_tags AND retroactive=False "
+            "AND entry_timing='on_time'"
+        ),
+        "rules_followed_pct": (
+            round(len(followed) / len(rules_known) * 100, 1) if rules_known else 0
+        ),
+        "no_mistakes_pct": (
+            round(len(no_mistakes) / len(closed) * 100, 1) if closed else 0
+        ),
+        "clean_pct": sample_integrity["clean_pct"],
+        "composite": sample_integrity["clean_pct"],
+        "process_winrate_minus_outcome_winrate": sample_integrity["integrity_delta"],
     }
 
 

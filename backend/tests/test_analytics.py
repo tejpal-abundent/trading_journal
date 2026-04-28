@@ -256,3 +256,45 @@ def test_streak_expectations_all_wins_no_losses():
     assert s["p_loss"] == 0.0
     assert s["expected_max_loss_streak"] == 0
     assert s["five_loss_streak_every_n_trades"] is None
+
+
+def test_process_score_composite_equals_sample_integrity_clean_pct():
+    trades = [
+        _trade(status="win", rules_followed=True, mistake_tags=[],
+               retroactive=False, entry_timing="on_time", pnl=10),
+        _trade(status="loss", rules_followed=False, mistake_tags=["moved_sl"],
+               retroactive=False, entry_timing="late", pnl=-5),
+        _trade(status="win", rules_followed=True, mistake_tags=[],
+               retroactive=False, entry_timing="on_time", pnl=15),
+    ]
+    a = compute_analytics(trades, days=14)
+    assert a["process_score"]["composite"] == a["sample_integrity"]["clean_pct"]
+
+
+def test_process_score_sub_scores():
+    # 4 closed: 3 with rules_followed=True (1 of which is None), 1 false
+    # 3 with no mistakes; 1 with mistake_tags
+    trades = [
+        _trade(status="win",  rules_followed=True,  mistake_tags=[], pnl=10),
+        _trade(status="win",  rules_followed=True,  mistake_tags=[], pnl=10),
+        _trade(status="loss", rules_followed=False, mistake_tags=["moved_sl"], pnl=-5),
+        _trade(status="win",  rules_followed=None,  mistake_tags=[], pnl=10),
+    ]
+    p = compute_analytics(trades, days=14)["process_score"]
+    # rules_followed_pct denominator = trades with rules_followed not None = 3
+    # 2 of 3 followed → 66.7%
+    assert p["rules_followed_pct"] == round(2 / 3 * 100, 1)
+    # no_mistakes denominator = all closed (4); 3 have no mistakes
+    assert p["no_mistakes_pct"] == 75.0
+
+
+def test_process_score_winrate_delta():
+    trades = [
+        _trade(status="win",  rules_followed=True, mistake_tags=[],
+               retroactive=False, entry_timing="on_time", pnl=10),
+        _trade(status="loss", rules_followed=False, mistake_tags=["moved_sl"],
+               retroactive=False, entry_timing="late", pnl=-5),
+    ]
+    a = compute_analytics(trades, days=14)
+    delta = a["process_score"]["process_winrate_minus_outcome_winrate"]
+    assert delta == a["sample_integrity"]["integrity_delta"]
