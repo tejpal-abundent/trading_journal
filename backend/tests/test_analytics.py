@@ -89,3 +89,21 @@ def test_edge_composite_returns_not_enough_data_under_5():
     e = compute_analytics(trades, days=14)["edge_composite"]
     assert e["headline"] == "Not enough data yet"
     assert e["count"] == 0
+
+
+def test_top_level_win_rate_decorated_with_ci():
+    trades = [_trade(status="win", pnl=20), _trade(status="loss", pnl=-10)]
+    a = compute_analytics(trades, days=14)
+    assert a["win_rate"] == 50.0
+    assert a["n"] == 2
+    assert isinstance(a["win_rate_ci"], (list, tuple))
+    assert len(a["win_rate_ci"]) == 2
+    assert a["confidence"] == "Noise"
+
+
+def test_top_level_win_rate_no_closed_trades():
+    trades = [_trade(status="planned")]
+    a = compute_analytics(trades, days=14)
+    assert a["n"] == 0
+    assert a["win_rate_ci"] is None
+    assert a["confidence"] == "Noise"

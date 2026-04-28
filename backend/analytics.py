@@ -1,5 +1,6 @@
 """Analytics computations over a list of parsed trade dicts."""
 from collections import defaultdict
+from stats import wilson_ci, confidence_label, expected_max_loss_streak, current_streak
 
 RISK_THRESHOLD_PCT = 2.0
 
@@ -20,6 +21,7 @@ def compute_analytics(trades: list[dict], days: int | None = None,
     win_rate = len(wins) / len(closed) * 100 if closed else 0
     avg_rr = sum(t["rr_achieved"] or 0 for t in closed) / len(closed) if closed else 0
 
+    n_closed = len(closed)
     return {
         "period_days": days,
         "period_start": period_start, "period_end": period_end,
@@ -31,6 +33,9 @@ def compute_analytics(trades: list[dict], days: int | None = None,
         "skipped_trades": len(skipped),
         "wins": len(wins), "losses": len(losses), "breakeven": len(breakevens),
         "win_rate": round(win_rate, 1),
+        "n": n_closed,
+        "win_rate_ci": wilson_ci(len(wins), n_closed),
+        "confidence": confidence_label(n_closed),
         "total_pnl": round(total_pnl, 2),
         "avg_score": round(avg_score, 1),
         "avg_rr": round(avg_rr, 2),
