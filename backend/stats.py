@@ -37,3 +37,16 @@ def confidence_label(n: int) -> str:
         if n < threshold:
             return label
     return "Conviction"
+
+
+def expected_max_loss_streak(p_loss: float, n: int) -> int:
+    """Schilling approximation for the longest run of losses in n trials.
+
+    E[longest run] ≈ log_(1/p_loss)( n * (1 - p_loss) )
+
+    Returns 0 if inputs are degenerate (n==0, p_loss<=0, p_loss>=1).
+    """
+    if n <= 0 or p_loss <= 0 or p_loss >= 1:
+        return 0
+    expected = math.log(n * (1 - p_loss)) / math.log(1 / p_loss)
+    return max(1, round(expected))

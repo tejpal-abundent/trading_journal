@@ -45,3 +45,29 @@ def test_confidence_label_boundaries():
     assert confidence_label(999) == "Strong"
     assert confidence_label(1000) == "Conviction"
     assert confidence_label(10_000) == "Conviction"
+
+
+from stats import expected_max_loss_streak
+
+
+def test_expected_streak_zero_n():
+    assert expected_max_loss_streak(0.5, 0) == 0
+
+
+def test_expected_streak_p_loss_zero():
+    assert expected_max_loss_streak(0.0, 100) == 0
+
+
+def test_expected_streak_p_loss_one():
+    assert expected_max_loss_streak(1.0, 100) == 0  # degenerate, return 0
+
+
+def test_expected_streak_50_50_100_trades():
+    # Schilling: log(100*0.5)/log(2) = log(50)/log(2) ≈ 5.64 → 6
+    result = expected_max_loss_streak(0.5, 100)
+    assert 5 <= result <= 7
+
+
+def test_expected_streak_returns_at_least_one():
+    # Even tiny n should give >=1 if math is degenerate-ish
+    assert expected_max_loss_streak(0.5, 2) >= 1
