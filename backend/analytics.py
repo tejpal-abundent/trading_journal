@@ -63,6 +63,7 @@ def compute_analytics(trades: list[dict], days: int | None = None,
         "edge_composite": _edge_composite(closed),
         "confluence_impact": _tag_impact(closed, "confluences"),
         "mfe_mae_analysis": _mfe_mae_analysis(closed),
+        "sample_integrity": _sample_integrity(closed),
         "trades": trades,
     }
 
@@ -258,6 +259,51 @@ def _mfe_mae_analysis(closed):
         "avg_mae_winners": _avg(wins, "mae_r"),
         "avg_mae_losers":  _avg(losses, "mae_r"),
         "max_mfe_all": max((t["mfe_r"] for t in with_mfe), default=None),
+    }
+
+
+def _is_clean(t: dict) -> bool:
+    """Strict clean-trade predicate from the spec.
+
+    A closed trade is clean iff:
+      - retroactive == 0  (planned in advance)
+      - rules_followed == True  (explicit yes, not None)
+      - mistake_tags is empty
+      - entry_timing == 'on_time'
+    """
+    return (
+        not t["retroactive"]
+        and t["rules_followed"] is True
+        and not t["mistake_tags"]
+        and t["entry_timing"] == "on_time"
+    )
+
+
+def _sample_integrity(closed):
+    total = len(closed)
+    clean = [t for t in closed if _is_clean(t)]
+    clean_n = len(clean)
+    clean_wins = [t for t in clean if t["status"] == "win"]
+    all_wins = [t for t in closed if t["status"] == "win"]
+
+    clean_wr = round(len(clean_wins) / clean_n * 100, 1) if clean_n else 0
+    all_wr = round(len(all_wins) / total * 100, 1) if total else 0
+
+    return {
+        "definition": (
+            "rules_followed=True AND no mistake_tags AND retroactive=False "
+            "AND entry_timing='on_time'"
+        ),
+        "clean_count": clean_n,
+        "total_count": total,
+        "clean_pct": round(clean_n / total * 100, 1) if total else 0,
+        "clean_win_rate": clean_wr,
+        "clean_win_rate_ci": wilson_ci(len(clean_wins), clean_n),
+        "clean_confidence": confidence_label(clean_n),
+        "all_win_rate": all_wr,
+        "all_win_rate_ci": wilson_ci(len(all_wins), total),
+        "all_confidence": confidence_label(total),
+        "integrity_delta": round(clean_wr - all_wr, 1),
     }
 
 

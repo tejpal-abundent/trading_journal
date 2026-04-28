@@ -162,3 +162,47 @@ def test_timing_impact_buckets_have_ci():
     a = compute_analytics(trades, days=14)["timing_impact"]
     assert "win_rate_ci" in a["on_time"]
     assert "confidence" in a["on_time"]
+
+
+def test_sample_integrity_clean_predicate():
+    # 5 closed trades; 3 are clean (rules_followed=True, no mistakes,
+    # not retroactive, on_time entry); 2 are not clean.
+    trades = [
+        _trade(status="win", pnl=20, rules_followed=True, mistake_tags=[],
+               retroactive=False, entry_timing="on_time"),
+        _trade(status="win", pnl=15, rules_followed=True, mistake_tags=[],
+               retroactive=False, entry_timing="on_time"),
+        _trade(status="loss", pnl=-10, rules_followed=True, mistake_tags=[],
+               retroactive=False, entry_timing="on_time"),
+        # not clean: late entry
+        _trade(status="loss", pnl=-15, rules_followed=True, mistake_tags=[],
+               retroactive=False, entry_timing="late"),
+        # not clean: has mistake
+        _trade(status="loss", pnl=-5, rules_followed=True,
+               mistake_tags=["moved_sl"], retroactive=False, entry_timing="on_time"),
+    ]
+    s = compute_analytics(trades, days=14)["sample_integrity"]
+    assert s["clean_count"] == 3
+    assert s["total_count"] == 5
+    assert s["clean_pct"] == 60.0
+    assert s["clean_win_rate"] == round(2 / 3 * 100, 1)
+    assert s["all_win_rate"] == 40.0
+    assert s["integrity_delta"] == round(s["clean_win_rate"] - s["all_win_rate"], 1)
+
+
+def test_sample_integrity_no_clean_trades():
+    trades = [_trade(status="loss", pnl=-10, rules_followed=False, mistake_tags=["moved_sl"])]
+    s = compute_analytics(trades, days=14)["sample_integrity"]
+    assert s["clean_count"] == 0
+    assert s["clean_win_rate"] == 0
+    assert s["clean_win_rate_ci"] is None
+
+
+def test_sample_integrity_excludes_null_rules_followed():
+    # rules_followed is None → not clean (per spec)
+    trades = [
+        _trade(status="win", pnl=10, rules_followed=None, mistake_tags=[],
+               retroactive=False, entry_timing="on_time"),
+    ]
+    s = compute_analytics(trades, days=14)["sample_integrity"]
+    assert s["clean_count"] == 0
