@@ -107,3 +107,58 @@ def test_top_level_win_rate_no_closed_trades():
     assert a["n"] == 0
     assert a["win_rate_ci"] is None
     assert a["confidence"] == "Noise"
+
+
+def test_score_analysis_rows_have_ci_and_confidence():
+    trades = [
+        _trade(status="win", setup_score=90, pnl=20),
+        _trade(status="loss", setup_score=88, pnl=-10),
+        _trade(status="win", setup_score=75, pnl=15),
+    ]
+    a = compute_analytics(trades, days=14)["score_analysis"]
+    assert "A (85-100)" in a
+    assert "n" in a["A (85-100)"]
+    assert "win_rate_ci" in a["A (85-100)"]
+    assert "confidence" in a["A (85-100)"]
+
+
+def test_pair_breakdown_has_ci():
+    trades = [
+        _trade(status="win", pair="XAU/USD", pnl=10),
+        _trade(status="loss", pair="XAU/USD", pnl=-5),
+        _trade(status="win", pair="EUR/USD", pnl=20),
+    ]
+    a = compute_analytics(trades, days=14)["pair_breakdown"]
+    assert "win_rate_ci" in a["XAU/USD"]
+    assert "confidence" in a["XAU/USD"]
+
+
+def test_direction_stats_has_ci():
+    trades = [
+        _trade(status="win", direction="LONG", pnl=10),
+        _trade(status="loss", direction="LONG", pnl=-5),
+    ]
+    a = compute_analytics(trades, days=14)["direction_stats"]
+    assert "win_rate_ci" in a["LONG"]
+    assert a["LONG"]["confidence"] == "Noise"
+
+
+def test_mistake_impact_rows_have_ci():
+    trades = [
+        _trade(status="win", pnl=10, mistake_tags=["moved_sl"]),
+        _trade(status="loss", pnl=-5, mistake_tags=["moved_sl"]),
+    ]
+    rows = compute_analytics(trades, days=14)["mistake_impact"]
+    for r in rows:
+        assert "win_rate_ci" in r
+        assert "confidence" in r
+
+
+def test_timing_impact_buckets_have_ci():
+    trades = [
+        _trade(status="win", entry_timing="on_time", pnl=10),
+        _trade(status="loss", entry_timing="late", pnl=-5),
+    ]
+    a = compute_analytics(trades, days=14)["timing_impact"]
+    assert "win_rate_ci" in a["on_time"]
+    assert "confidence" in a["on_time"]

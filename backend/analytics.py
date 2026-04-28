@@ -5,6 +5,15 @@ from stats import wilson_ci, confidence_label, expected_max_loss_streak, current
 RISK_THRESHOLD_PCT = 2.0
 
 
+def _decorate(wins: int, n: int) -> dict:
+    """Returns the standard CI-decoration dict to merge into a row."""
+    return {
+        "n": n,
+        "win_rate_ci": wilson_ci(wins, n),
+        "confidence": confidence_label(n),
+    }
+
+
 def compute_analytics(trades: list[dict], days: int | None = None,
                       period_start: str | None = None, period_end: str | None = None,
                       confluence_filter: list[str] | None = None) -> dict:
@@ -74,18 +83,27 @@ def _score_analysis(closed):
                 "count": len(bt),
                 "win_rate": round(len(bw) / len(bt) * 100, 1),
                 "avg_pnl": round(sum(t["pnl"] or 0 for t in bt) / len(bt), 2),
+                **_decorate(len(bw), len(bt)),
             }
     return out
 
 
 def _pair_breakdown(closed):
-    pairs = defaultdict(lambda: {"wins": 0, "losses": 0, "pnl": 0})
+    pairs = defaultdict(lambda: {"wins": 0, "losses": 0, "pnl": 0, "_n": 0})
     for t in closed:
         p = t["pair"]
+        pairs[p]["_n"] += 1
         if t["status"] == "win": pairs[p]["wins"] += 1
         elif t["status"] == "loss": pairs[p]["losses"] += 1
         pairs[p]["pnl"] = round(pairs[p]["pnl"] + (t["pnl"] or 0), 2)
-    return dict(pairs)
+    out = {}
+    for p, agg in pairs.items():
+        out[p] = {
+            "wins": agg["wins"], "losses": agg["losses"], "pnl": agg["pnl"],
+            "win_rate": round(agg["wins"] / agg["_n"] * 100, 1) if agg["_n"] else 0,
+            **_decorate(agg["wins"], agg["_n"]),
+        }
+    return out
 
 
 def _direction_stats(closed):
@@ -97,6 +115,7 @@ def _direction_stats(closed):
             "count": len(rows),
             "win_rate": round(len(wins) / len(rows) * 100, 1) if rows else 0,
             "pnl": round(sum(t["pnl"] or 0 for t in rows), 2),
+            **_decorate(len(wins), len(rows)),
         }
     return out
 
@@ -114,10 +133,16 @@ def _plan_adherence(trades):
     broken = [t for t in rules_known if not t["rules_followed"]]
     fwins = [t for t in followed if t["status"] == "win"]
     bwins = [t for t in broken if t["status"] == "win"]
+    fci  = wilson_ci(len(fwins), len(followed)) if followed else None
+    bci  = wilson_ci(len(bwins), len(broken)) if broken else None
     return {
         "rules_followed_pct": round(len(followed) / len(rules_known) * 100, 1) if rules_known else 0,
         "rules_followed_win_rate": round(len(fwins) / len(followed) * 100, 1) if followed else 0,
+        "rules_followed_win_rate_ci": fci,
+        "rules_followed_confidence": confidence_label(len(followed)),
         "rules_broken_win_rate": round(len(bwins) / len(broken) * 100, 1) if broken else 0,
+        "rules_broken_win_rate_ci": bci,
+        "rules_broken_confidence": confidence_label(len(broken)),
         "skip_rate": round(len(skipped) / len(planned_lifecycle) * 100, 1) if planned_lifecycle else 0,
         "retroactive_rate": round(
             len([t for t in trades if t["retroactive"]]) / len(trades) * 100, 1
@@ -170,6 +195,7 @@ def _tag_impact(closed, key):
             "win_rate": round(agg["wins"] / agg["count"] * 100, 1) if agg["count"] else 0,
             "avg_pnl": round(agg["pnl_sum"] / agg["count"], 2) if agg["count"] else 0,
             "total_pnl": round(agg["pnl_sum"], 2),
+            **_decorate(agg["wins"], agg["count"]),
         })
     rows.sort(key=lambda r: abs(r["total_pnl"]), reverse=True)
     return rows
@@ -183,6 +209,7 @@ def _timing_impact(closed):
         out[bucket] = {
             "count": len(rows),
             "win_rate": round(len(wins) / len(rows) * 100, 1) if rows else 0,
+            **_decorate(len(wins), len(rows)),
         }
     return out
 
