@@ -206,3 +206,53 @@ def test_sample_integrity_excludes_null_rules_followed():
     ]
     s = compute_analytics(trades, days=14)["sample_integrity"]
     assert s["clean_count"] == 0
+
+
+def test_streak_expectations_basic():
+    # 18 closed trades, 11 wins, 7 losses → p_loss ≈ 0.389
+    trades = [_trade(status="win", pnl=10) for _ in range(11)] + \
+             [_trade(status="loss", pnl=-5) for _ in range(7)]
+    s = compute_analytics(trades, days=14)["streak_expectations"]
+    assert "p_loss" in s
+    assert 0.38 < s["p_loss"] < 0.40
+    assert s["expected_max_loss_streak"] >= 1
+    assert s["five_loss_streak_every_n_trades"] is not None
+
+
+def test_streak_expectations_actual_max_loss_streak():
+    # Build a sequence with a known longest losing run.
+    # Order matters: closed_at ascending. Use distinct timestamps.
+    seq = ["win", "loss", "loss", "loss", "win", "loss", "loss", "win"]
+    trades = []
+    for i, st in enumerate(seq):
+        trades.append(_trade(
+            status=st,
+            pnl=10 if st == "win" else -5,
+            closed_at=f"2026-04-{20 + i:02d}T10:00:00",
+        ))
+    s = compute_analytics(trades, days=14)["streak_expectations"]
+    assert s["actual_max_loss_streak"] == 3
+
+
+def test_streak_expectations_current_streak_kind():
+    seq = ["win", "loss", "loss"]
+    trades = [_trade(status=st, pnl=(10 if st == "win" else -5),
+                     closed_at=f"2026-04-{20 + i:02d}T10:00:00") for i, st in enumerate(seq)]
+    s = compute_analytics(trades, days=14)["streak_expectations"]
+    assert s["current_streak"]["kind"] == "loss"
+    assert s["current_streak"]["length"] == 2
+
+
+def test_streak_expectations_insufficient_data():
+    trades = [_trade(status="planned")]
+    s = compute_analytics(trades, days=14)["streak_expectations"]
+    assert s == {"insufficient_data": True}
+
+
+def test_streak_expectations_all_wins_no_losses():
+    # p_loss = 0, expected_max_loss_streak should be 0
+    trades = [_trade(status="win", pnl=10) for _ in range(5)]
+    s = compute_analytics(trades, days=14)["streak_expectations"]
+    assert s["p_loss"] == 0.0
+    assert s["expected_max_loss_streak"] == 0
+    assert s["five_loss_streak_every_n_trades"] is None

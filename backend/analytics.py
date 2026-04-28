@@ -64,6 +64,7 @@ def compute_analytics(trades: list[dict], days: int | None = None,
         "confluence_impact": _tag_impact(closed, "confluences"),
         "mfe_mae_analysis": _mfe_mae_analysis(closed),
         "sample_integrity": _sample_integrity(closed),
+        "streak_expectations": _streak_expectations(closed),
         "trades": trades,
     }
 
@@ -304,6 +305,43 @@ def _sample_integrity(closed):
         "all_win_rate_ci": wilson_ci(len(all_wins), total),
         "all_confidence": confidence_label(total),
         "integrity_delta": round(clean_wr - all_wr, 1),
+    }
+
+
+def _streak_expectations(closed):
+    """Variance expectations from p_loss and sample size.
+
+    closed must be list of closed trades (status in win/loss/breakeven).
+    """
+    if not closed:
+        return {"insufficient_data": True}
+
+    losses = [t for t in closed if t["status"] == "loss"]
+    wins = [t for t in closed if t["status"] == "win"]
+    decisive = len(losses) + len(wins)
+    if decisive == 0:
+        return {"insufficient_data": True}
+
+    p_loss = len(losses) / decisive
+
+    # Sort by closed_at ascending for streak math
+    ordered = sorted(closed, key=lambda t: t.get("closed_at") or "")
+    streak = current_streak(ordered)
+
+    five_loss_every_n = (
+        round(1 / (p_loss ** 5)) if p_loss > 0 else None
+    )
+
+    return {
+        "p_loss": round(p_loss, 3),
+        "expected_max_loss_streak": expected_max_loss_streak(p_loss, len(closed)),
+        "actual_max_loss_streak": streak["longest_loss"],
+        "current_streak": {"kind": streak["kind"], "length": streak["length"]},
+        "five_loss_streak_every_n_trades": five_loss_every_n,
+        "fat_tail_caveat": (
+            "Markets have fat tails — expected streaks can underestimate "
+            "real-world variance."
+        ),
     }
 
 
