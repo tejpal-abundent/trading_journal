@@ -50,3 +50,35 @@ def expected_max_loss_streak(p_loss: float, n: int) -> int:
         return 0
     expected = math.log(n * (1 - p_loss)) / math.log(1 / p_loss)
     return max(1, round(expected))
+
+
+def current_streak(closed_trades_in_order: list[dict]) -> dict:
+    """closed_trades_in_order must be sorted by closed_at ascending.
+
+    Returns {kind, length, longest_loss}.
+    - longest_loss: the longest loss run anywhere in the input.
+    - kind/length: the *current* trailing streak (breakeven breaks it).
+    """
+    longest_loss = 0
+    run = 0
+    for t in closed_trades_in_order:
+        if t["status"] == "loss":
+            run += 1
+            longest_loss = max(longest_loss, run)
+        else:
+            run = 0
+
+    kind, length = "none", 0
+    for t in reversed(closed_trades_in_order):
+        if t["status"] in ("win", "loss"):
+            if length == 0:
+                kind = t["status"]
+                length = 1
+            elif t["status"] == kind:
+                length += 1
+            else:
+                break
+        else:
+            break  # breakeven breaks the streak
+
+    return {"kind": kind, "length": length, "longest_loss": longest_loss}

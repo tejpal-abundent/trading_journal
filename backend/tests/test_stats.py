@@ -71,3 +71,51 @@ def test_expected_streak_50_50_100_trades():
 def test_expected_streak_returns_at_least_one():
     # Even tiny n should give >=1 if math is degenerate-ish
     assert expected_max_loss_streak(0.5, 2) >= 1
+
+
+from stats import current_streak
+
+
+def test_current_streak_empty():
+    s = current_streak([])
+    assert s == {"kind": "none", "length": 0, "longest_loss": 0}
+
+
+def test_current_streak_all_wins():
+    trades = [{"status": "win"}] * 5
+    s = current_streak(trades)
+    assert s == {"kind": "win", "length": 5, "longest_loss": 0}
+
+
+def test_current_streak_all_losses():
+    trades = [{"status": "loss"}] * 4
+    s = current_streak(trades)
+    assert s == {"kind": "loss", "length": 4, "longest_loss": 4}
+
+
+def test_current_streak_mixed_tail_loss():
+    # win, loss, loss, win, loss, loss, loss → tail is 3 losses; longest_loss is 3
+    trades = [
+        {"status": "win"}, {"status": "loss"}, {"status": "loss"},
+        {"status": "win"}, {"status": "loss"}, {"status": "loss"}, {"status": "loss"},
+    ]
+    s = current_streak(trades)
+    assert s == {"kind": "loss", "length": 3, "longest_loss": 3}
+
+
+def test_current_streak_breakeven_breaks_streak():
+    # loss, loss, breakeven → tail is broken, kind=none, length=0; longest_loss=2
+    trades = [{"status": "loss"}, {"status": "loss"}, {"status": "breakeven"}]
+    s = current_streak(trades)
+    assert s == {"kind": "none", "length": 0, "longest_loss": 2}
+
+
+def test_current_streak_longest_loss_in_middle():
+    # loss×4 in the middle, then a win at the end
+    trades = [
+        {"status": "win"},
+        {"status": "loss"}, {"status": "loss"}, {"status": "loss"}, {"status": "loss"},
+        {"status": "win"},
+    ]
+    s = current_streak(trades)
+    assert s == {"kind": "win", "length": 1, "longest_loss": 4}
