@@ -22,3 +22,18 @@ def wilson_ci(wins: int, n: int, z: float = 1.96) -> tuple[float, float] | None:
     lo = (centre - margin) / denom
     hi = (centre + margin) / denom
     return (round(lo * 100, 1), round(hi * 100, 1))
+
+
+CONFIDENCE_THRESHOLDS = [
+    (30,   "Noise"),       # under 30 trades = pure noise (per video)
+    (100,  "Noisy"),
+    (500,  "Reasonable"),
+    (1000, "Strong"),
+]
+
+
+def confidence_label(n: int) -> str:
+    for threshold, label in CONFIDENCE_THRESHOLDS:
+        if n < threshold:
+            return label
+    return "Conviction"

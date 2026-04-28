@@ -28,3 +28,20 @@ def test_wilson_ci_returns_tuple_rounded_to_one_decimal():
 def test_wilson_ci_ordering():
     lo, hi = wilson_ci(11, 18)
     assert lo < hi
+
+
+from stats import confidence_label
+
+
+def test_confidence_label_boundaries():
+    # Per the video: <30 noise, <100 noisy, <500 reasonable, <1000 strong, >=1000 conviction
+    assert confidence_label(0) == "Noise"
+    assert confidence_label(29) == "Noise"
+    assert confidence_label(30) == "Noisy"
+    assert confidence_label(99) == "Noisy"
+    assert confidence_label(100) == "Reasonable"
+    assert confidence_label(499) == "Reasonable"
+    assert confidence_label(500) == "Strong"
+    assert confidence_label(999) == "Strong"
+    assert confidence_label(1000) == "Conviction"
+    assert confidence_label(10_000) == "Conviction"
