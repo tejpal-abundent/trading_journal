@@ -316,3 +316,20 @@ def test_regime_coverage_no_warning_for_long_high_n():
     a = compute_analytics(trades, days=200, period_start="2025-09-01", period_end="2026-04-29")
     rc = a["regime_coverage"]
     assert rc["warning"] is None
+
+
+def test_strategy_breakdown_under_30_has_frequency_warning():
+    trades = [_trade(status="win", strategy="Zone Failure", pnl=10) for _ in range(10)]
+    rows = compute_analytics(trades, days=14)["strategy_breakdown"]
+    s = next(r for r in rows if r["strategy"] == "Zone Failure")
+    assert s["frequency_warning"] == "Under 30 trades — insufficient sample"
+    assert s["confidence"] == "Noise"
+    assert s["win_rate_ci"] is not None
+
+
+def test_strategy_breakdown_30_or_more_no_frequency_warning():
+    trades = [_trade(status="win", strategy="Zone Failure", pnl=10) for _ in range(35)]
+    rows = compute_analytics(trades, days=14)["strategy_breakdown"]
+    s = next(r for r in rows if r["strategy"] == "Zone Failure")
+    assert s["frequency_warning"] is None
+    assert s["confidence"] == "Noisy"

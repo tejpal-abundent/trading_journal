@@ -232,6 +232,10 @@ def _strategy_breakdown(closed):
             "count": len(rows),
             "win_rate": round(len(wins) / len(rows) * 100, 1) if rows else 0,
             "expectancy": round(sum(t["pnl"] or 0 for t in rows) / len(rows), 2) if rows else 0,
+            **_decorate(len(wins), len(rows)),
+            "frequency_warning": (
+                "Under 30 trades — insufficient sample" if len(rows) < 30 else None
+            ),
         })
     return out
 
