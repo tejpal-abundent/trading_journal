@@ -298,3 +298,21 @@ def test_process_score_winrate_delta():
     a = compute_analytics(trades, days=14)
     delta = a["process_score"]["process_winrate_minus_outcome_winrate"]
     assert delta == a["sample_integrity"]["integrity_delta"]
+
+
+def test_regime_coverage_warning_for_short_span():
+    trades = [_trade(status="win", pnl=10) for _ in range(5)]
+    a = compute_analytics(trades, days=14, period_start="2026-04-15", period_end="2026-04-29")
+    rc = a["regime_coverage"]
+    assert rc["span_days"] >= 14
+    assert rc["n_trades"] == 5
+    assert rc["warning"] is not None
+    assert "fat_tail_caveat" in rc
+
+
+def test_regime_coverage_no_warning_for_long_high_n():
+    # 200+ days span and 100+ trades → no warning
+    trades = [_trade(status="win", pnl=1) for _ in range(120)]
+    a = compute_analytics(trades, days=200, period_start="2025-09-01", period_end="2026-04-29")
+    rc = a["regime_coverage"]
+    assert rc["warning"] is None

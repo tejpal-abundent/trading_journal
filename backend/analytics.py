@@ -1,5 +1,6 @@
 """Analytics computations over a list of parsed trade dicts."""
 from collections import defaultdict
+from datetime import datetime
 from stats import wilson_ci, confidence_label, expected_max_loss_streak, current_streak
 
 RISK_THRESHOLD_PCT = 2.0
@@ -67,6 +68,7 @@ def compute_analytics(trades: list[dict], days: int | None = None,
         "sample_integrity": (si := _sample_integrity(closed)),
         "streak_expectations": _streak_expectations(closed),
         "process_score": _process_score(closed, si),
+        "regime_coverage": _regime_coverage(trades, period_start, period_end),
         "trades": trades,
     }
 
@@ -343,6 +345,54 @@ def _streak_expectations(closed):
         "fat_tail_caveat": (
             "Markets have fat tails — expected streaks can underestimate "
             "real-world variance."
+        ),
+    }
+
+
+def _regime_coverage(trades, period_start, period_end):
+    """Span / sample-size warning + fat-tail caveat.
+
+    span_days = max(period span, actual trade-data span). The warning fires
+    when EITHER span < 180 days OR n_trades < 100.
+    """
+    n_trades = len(trades)
+
+    closed_dates = [t.get("closed_at") for t in trades if t.get("closed_at")]
+    data_span_days = 0
+    if closed_dates:
+        try:
+            parsed = sorted(
+                datetime.fromisoformat(d.replace("Z", "+00:00")) for d in closed_dates
+            )
+            data_span_days = (parsed[-1] - parsed[0]).days
+        except (ValueError, TypeError):
+            data_span_days = 0
+
+    period_span_days = 0
+    if period_start and period_end:
+        try:
+            ps = datetime.fromisoformat(period_start)
+            pe = datetime.fromisoformat(period_end)
+            period_span_days = (pe - ps).days
+        except (ValueError, TypeError):
+            period_span_days = 0
+
+    span_days = max(data_span_days, period_span_days)
+
+    warning = None
+    if span_days < 180 or n_trades < 100:
+        warning = (
+            f"Sample spans {span_days} days with {n_trades} trades. "
+            "Markets need 6+ months across multiple regimes for confidence."
+        )
+
+    return {
+        "span_days": span_days,
+        "n_trades": n_trades,
+        "warning": warning,
+        "fat_tail_caveat": (
+            "Markets have fat tails — true confidence may need 10x more "
+            "trades than the math suggests (Taleb)."
         ),
     }
 
