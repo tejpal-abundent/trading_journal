@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { api, AnalyticsData, Review as ReviewT } from "../api";
 import { labelize } from "../constants/tags";
+import SampleIntegrityCard from "./SampleIntegrityCard";
+import VarianceExpectationsCard from "./VarianceExpectationsCard";
+import ProcessScorecardCard from "./ProcessScorecardCard";
+import DontBailBanner from "./DontBailBanner";
+import { confidenceBadgeClass } from "../lib/confidence";
 
 const PRESETS = [
   { id: "7",   label: "7 days",  days: 7 },
@@ -176,14 +181,30 @@ export default function Review() {
 function Stats({ d }: { d: AnalyticsData }) {
   return (
     <div className="flex col gap-3">
+      <DontBailBanner data={d.streak_expectations} />
       <div className="card">
         <div className="flex between center">
           <span><b>{d.total_trades}</b> trades · <b>{d.closed_trades}</b> closed · <b>{d.skipped_trades}</b> skipped</span>
           <span><b style={{ color: d.total_pnl >= 0 ? "var(--green)" : "var(--red)" }}>${d.total_pnl}</b></span>
         </div>
-        <div className="text-sm text-2 mt-1">
-          Win rate {d.win_rate}% · Avg score {d.avg_score} · Avg R {d.avg_rr}
+        <div className="kpis text-sm text-2 mt-1">
+          Win rate <b>{d.win_rate}%</b>
+          {d.win_rate_ci && (
+            <span className={`badge ${confidenceBadgeClass(d.confidence)}`} style={{ marginLeft: 6 }}>
+              n={d.n ?? d.closed_trades}, {d.confidence ?? ''}
+            </span>
+          )}
+          {' · '}Avg score {d.avg_score} · Avg R {d.avg_rr}
         </div>
+      </div>
+
+      <div className="cards-grid" style={{
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gap: 12, marginTop: 12,
+      }}>
+        <SampleIntegrityCard data={d.sample_integrity} />
+        <VarianceExpectationsCard data={d.streak_expectations} />
+        <ProcessScorecardCard data={d.process_score} />
       </div>
 
       {d.edge_composite && (
@@ -329,6 +350,13 @@ function Stats({ d }: { d: AnalyticsData }) {
               <b>{s.strategy}</b>: {s.count} trades · {s.win_rate}% win · expectancy ${s.expectancy}
             </div>
           ))}
+        </div>
+      )}
+
+      {d.regime_coverage && (
+        <div className="muted small" style={{ marginTop: 16, fontStyle: 'italic' }}>
+          {d.regime_coverage.warning && <p>⚠ {d.regime_coverage.warning}</p>}
+          <p>{d.regime_coverage.fat_tail_caveat}</p>
         </div>
       )}
     </div>
