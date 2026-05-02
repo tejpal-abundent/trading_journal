@@ -337,7 +337,7 @@ def _streak_expectations(closed):
     streak = current_streak(ordered)
 
     five_loss_every_n = (
-        round(1 / (p_loss ** 5)) if p_loss > 0 else None
+        min(round(1 / (p_loss ** 5)), 999_999) if p_loss > 0 else None
     )
 
     return {

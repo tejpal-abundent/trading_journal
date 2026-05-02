@@ -273,6 +273,13 @@ def test_streak_expectations_all_wins_no_losses():
     assert s["five_loss_streak_every_n_trades"] is None
 
 
+def test_streak_expectations_five_loss_capped_for_low_p_loss():
+    # 99 wins, 1 loss → p_loss = 0.01; uncapped value would be 10 billion
+    trades = [_trade(status="win", pnl=1) for _ in range(99)] + [_trade(status="loss", pnl=-1)]
+    s = compute_analytics(trades, days=14)["streak_expectations"]
+    assert s["five_loss_streak_every_n_trades"] == 999_999
+
+
 def test_process_score_composite_equals_sample_integrity_clean_pct():
     trades = [
         _trade(status="win", rules_followed=True, mistake_tags=[],
