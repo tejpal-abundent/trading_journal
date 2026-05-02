@@ -47,6 +47,21 @@ def test_plan_adherence_excludes_retroactive():
     assert a["rules_broken_win_rate"] == 0.0
 
 
+def test_plan_adherence_has_ci_on_win_rates():
+    trades = [
+        _trade(status="win",  rules_followed=True,  retroactive=False, pnl=10),
+        _trade(status="loss", rules_followed=False, retroactive=False, pnl=-5),
+    ]
+    a = compute_analytics(trades, days=14)["plan_adherence"]
+    assert "rules_followed_win_rate_ci" in a
+    assert "rules_followed_confidence" in a
+    assert "rules_broken_win_rate_ci" in a
+    assert "rules_broken_confidence" in a
+    # Each side has 1 trade → confidence is "Noise"
+    assert a["rules_followed_confidence"] == "Noise"
+    assert a["rules_broken_confidence"] == "Noise"
+
+
 def test_skip_rate_uses_planned_lifecycle_denominator():
     trades = [
         _trade(status="entered", retroactive=False),
