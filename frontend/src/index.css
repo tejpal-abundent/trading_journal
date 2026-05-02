@@ -159,3 +159,34 @@ input:focus, select:focus, textarea:focus {
   font-size: 13px; text-transform: uppercase; color: var(--text2);
   margin: 16px 0 8px; letter-spacing: .5px;
 }
+
+/* Statistical Honesty Layer — utility classes */
+.muted { color: var(--text2); }
+.small { font-size: 12px; }
+
+.kpis { font-size: 14px; }
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--bg3);
+  color: var(--text2);
+}
+
+/* Confidence label colors — map Tailwind-ish names used in the JSX
+   to project CSS variables. Each row sets background + text color. */
+.bg-red-100 { background: var(--red-bg); }
+.text-red-700 { color: var(--red); }
+.bg-orange-100 { background: var(--yellow-bg); }
+.text-orange-700 { color: var(--yellow); }
+.bg-yellow-100 { background: var(--yellow-bg); }
+.text-yellow-700 { color: var(--yellow); }
+.bg-green-100 { background: var(--green-bg); }
+.text-green-700 { color: var(--green); }
+.bg-emerald-100 { background: var(--green-bg); }
+.text-emerald-700 { color: var(--green); }
+.bg-gray-100 { background: var(--bg3); }
+.text-gray-700 { color: var(--text2); }
