@@ -15,7 +15,7 @@ export default function DontBailBanner({ data }: Props) {
     return (
       <div className="banner banner-info" style={{
         padding: 12, borderRadius: 6, marginBottom: 12,
-        background: '#e0f2fe', color: '#075985',
+        background: 'var(--blue-bg)', color: 'var(--blue)',
       }}>
         ℹ {actual} losses in a row is normal at your {lossPct}% loss rate.
         Expected max streak in this sample is {expected}. Don't tilt — keep the system.
@@ -26,7 +26,7 @@ export default function DontBailBanner({ data }: Props) {
   return (
     <div className="banner banner-warn" style={{
       padding: 12, borderRadius: 6, marginBottom: 12,
-      background: '#fef3c7', color: '#854d0e',
+      background: 'var(--yellow-bg)', color: 'var(--yellow)',
     }}>
       ⚠ {actual}-loss streak exceeds the {expected} expected for this sample.
       Could be variance, could be a regime shift. Review before next trade.
