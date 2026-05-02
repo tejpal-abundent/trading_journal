@@ -80,6 +80,53 @@ export interface Review {
   created_at: string
 }
 
+export interface CIDecoration {
+  n?: number
+  win_rate_ci?: [number, number] | null
+  confidence?: string
+}
+
+export interface SampleIntegrity {
+  definition: string
+  clean_count: number
+  total_count: number
+  clean_pct: number
+  clean_win_rate: number
+  clean_win_rate_ci: [number, number] | null
+  clean_confidence: string
+  all_win_rate: number
+  all_win_rate_ci: [number, number] | null
+  all_confidence: string
+  integrity_delta: number
+}
+
+export type StreakExpectations =
+  | { insufficient_data: true }
+  | {
+      p_loss: number
+      expected_max_loss_streak: number
+      actual_max_loss_streak: number
+      current_streak: { kind: 'win' | 'loss' | 'none'; length: number }
+      five_loss_streak_every_n_trades: number | null
+      fat_tail_caveat: string
+    }
+
+export interface ProcessScore {
+  definition: string
+  rules_followed_pct: number
+  no_mistakes_pct: number
+  clean_pct: number
+  composite: number
+  process_winrate_minus_outcome_winrate: number
+}
+
+export interface RegimeCoverage {
+  span_days: number
+  n_trades: number
+  warning: string | null
+  fat_tail_caveat: string
+}
+
 export interface AnalyticsData {
   period_days: number | null
   period_start: string | null
@@ -93,16 +140,24 @@ export interface AnalyticsData {
   losses: number
   breakeven: number
   win_rate: number
+  // NEW — top-level CI decoration
+  n?: number
+  win_rate_ci?: [number, number] | null
+  confidence?: string
   total_pnl: number
   avg_score: number
   avg_rr: number
-  score_analysis: Record<string, { count: number; win_rate: number; avg_pnl: number }>
-  pair_breakdown: Record<string, { wins: number; losses: number; pnl: number }>
-  direction_stats: Record<string, { count: number; win_rate: number; pnl: number }>
+  score_analysis: Record<string, { count: number; win_rate: number; avg_pnl: number } & CIDecoration>
+  pair_breakdown: Record<string, { wins: number; losses: number; pnl: number; win_rate?: number } & CIDecoration>
+  direction_stats: Record<string, { count: number; win_rate: number; pnl: number } & CIDecoration>
   plan_adherence: {
     rules_followed_pct: number
     rules_followed_win_rate: number
+    rules_followed_win_rate_ci?: [number, number] | null
+    rules_followed_confidence?: string
     rules_broken_win_rate: number
+    rules_broken_win_rate_ci?: [number, number] | null
+    rules_broken_confidence?: string
     skip_rate: number
     retroactive_rate: number
   }
@@ -112,13 +167,19 @@ export interface AnalyticsData {
     over_threshold_count: number
     histogram: { bucket: string; count: number }[]
   }
-  mistake_impact: { tag: string; count: number; win_rate: number; avg_pnl: number; total_pnl: number }[]
+  mistake_impact: ({ tag: string; count: number; win_rate: number; avg_pnl: number; total_pnl: number } & CIDecoration)[]
   emotion_impact: {
-    entry: { tag: string; count: number; win_rate: number; avg_pnl: number; total_pnl: number }[]
-    exit:  { tag: string; count: number; win_rate: number; avg_pnl: number; total_pnl: number }[]
+    entry: ({ tag: string; count: number; win_rate: number; avg_pnl: number; total_pnl: number } & CIDecoration)[]
+    exit:  ({ tag: string; count: number; win_rate: number; avg_pnl: number; total_pnl: number } & CIDecoration)[]
   }
-  timing_impact: Record<string, { count: number; win_rate: number }>
-  strategy_breakdown: { strategy: string; count: number; win_rate: number; expectancy: number }[]
+  timing_impact: Record<string, { count: number; win_rate: number } & CIDecoration>
+  strategy_breakdown: ({
+    strategy: string
+    count: number
+    win_rate: number
+    expectancy: number
+    frequency_warning?: string | null
+  } & CIDecoration)[]
   edge_composite: {
     headline: string
     count: number
@@ -127,7 +188,7 @@ export interface AnalyticsData {
     total_pnl?: number
     filter?: Record<string, unknown>
   }
-  confluence_impact: { tag: string; count: number; win_rate: number; avg_pnl: number; total_pnl: number }[]
+  confluence_impact: ({ tag: string; count: number; win_rate: number; avg_pnl: number; total_pnl: number } & CIDecoration)[]
   mfe_mae_analysis: {
     count: number
     avg_mfe_all?: number | null
@@ -137,6 +198,11 @@ export interface AnalyticsData {
     avg_mae_losers?: number | null
     max_mfe_all?: number | null
   }
+  // NEW blocks
+  sample_integrity?: SampleIntegrity
+  streak_expectations?: StreakExpectations
+  process_score?: ProcessScore
+  regime_coverage?: RegimeCoverage
   confluence_filter: string[]
   trades: Trade[]
 }
