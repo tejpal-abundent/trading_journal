@@ -348,6 +348,9 @@ function Stats({ d }: { d: AnalyticsData }) {
           {d.strategy_breakdown.map(s => (
             <div key={s.strategy} className="text-sm">
               <b>{s.strategy}</b>: {s.count} trades · {s.win_rate}% win · expectancy ${s.expectancy}
+              {s.frequency_warning && (
+                <span style={{ color: 'var(--yellow)', marginLeft: 8 }}>{s.frequency_warning}</span>
+              )}
             </div>
           ))}
         </div>
