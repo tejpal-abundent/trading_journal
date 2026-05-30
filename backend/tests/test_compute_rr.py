@@ -98,3 +98,20 @@ def test_returns_none_when_inputs_missing():
         direction="LONG", status="win", trailed_stops=[],
     )
     assert r == {"rr_achieved": None, "r_locked_at_penultimate_trail": None}
+
+
+def test_unknown_direction_raises():
+    with pytest.raises(ValueError, match="direction must be LONG or SHORT"):
+        compute_rr(
+            entry=100.0, exit_price=110.0, stop_loss=90.0,
+            direction="BUY", status="win", trailed_stops=[],
+        )
+
+
+def test_win_with_none_trails_omits_locked():
+    r = compute_rr(
+        entry=100.0, exit_price=120.0, stop_loss=90.0,
+        direction="LONG", status="win", trailed_stops=None,
+    )
+    assert r["rr_achieved"] == 2.0
+    assert r["r_locked_at_penultimate_trail"] is None

@@ -41,7 +41,10 @@ def compute_rr(
     if entry == stop_loss:
         raise ValueError("entry_price equals stop_loss; R distance is zero")
 
-    dir_sign = 1 if direction.upper() == "LONG" else -1
+    d = direction.upper()
+    if d not in ("LONG", "SHORT"):
+        raise ValueError(f"direction must be LONG or SHORT, got {direction!r}")
+    dir_sign = 1 if d == "LONG" else -1
     r_distance = abs(entry - stop_loss)
 
     rr_achieved = round((exit_price - entry) * dir_sign / r_distance, 2)
