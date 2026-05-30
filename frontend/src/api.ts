@@ -10,6 +10,44 @@ export interface PartialExit {
   reason: 'took_profit' | 'cut_loss' | 'scaled_out' | 'sl_adjusted'
 }
 
+export interface TrailedStop {
+  price: number;
+  at: string;       // ISO timestamp
+  note?: string;
+}
+
+export interface DashboardKpi {
+  label: string;
+  pnl: number;
+  trades: number;
+  win_rate: number;
+}
+
+export interface DashboardMonthly {
+  label: string; year: number; month: number;
+  pnl_close_date: number; pnl_split: number;
+  trades: number; win_rate: number;
+}
+
+export interface DashboardWeekly {
+  label: string; iso_year: number; iso_week: number;
+  pnl: number; trades: number; win_rate: number;
+}
+
+export interface DashboardHeatCell { date: string; pnl: number; trades: number; }
+export interface DashboardEquityPoint { date: string; cumulative_pnl: number; trade_id: number; }
+
+export interface Dashboard {
+  this_week: DashboardKpi;
+  this_month: DashboardKpi;
+  ytd: DashboardKpi;
+  open_trades: { count: number };
+  monthly: DashboardMonthly[];
+  weekly: DashboardWeekly[];
+  daily_heatmap: DashboardHeatCell[];
+  equity_curve: DashboardEquityPoint[];
+}
+
 export interface Trade {
   id: number
   pair: string
@@ -42,6 +80,7 @@ export interface Trade {
   pnl: number | null
   pnl_percent: number | null
   rr_achieved: number | null
+  r_locked_at_penultimate_trail: number | null
   rules_followed: boolean | null
   mistake_tags: string[]
   emotions_exit: string[]
@@ -53,6 +92,8 @@ export interface Trade {
   mae_r: number | null
   created_at: string
   closed_at: string | null
+  trailed_stops: TrailedStop[]
+  updated_at: string | null
 }
 
 export interface Strategy {
@@ -221,23 +262,18 @@ async function request<T>(url: string, opts?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  createPlan: (data: {
-    pair: string; direction: string; timeframe: string; strategy: string;
-    setup_score: number; verdict: string; criteria_checked: string[]; notes?: string;
-    planned_entry?: number | null; planned_stop?: number | null;
-    planned_target?: number | null; planned_rr?: number | null;
-    confluences?: string[];
-  }) => request<Trade>('/trades', { method: 'POST', body: JSON.stringify(data) }),
-
-  enterTrade: (id: number, data: {
-    entry_price: number; stop_loss: number; take_profit?: number | null;
+  createTrade: (payload: {
+    pair: string; direction: 'LONG' | 'SHORT'; timeframe: string;
+    strategy: string; setup_score: number; verdict: string;
+    criteria_checked: string[]; confluences: string[];
+    entry_price: number; stop_loss: number;
+    take_profit?: number | null;
     position_size: number; account_size: number;
-    entry_timing?: EntryTiming | null;
+    notes?: string;
+    entry_timing?: string | null;
     emotions_entry?: string[]; feelings_entry?: string;
-  }) => request<Trade>(`/trades/${id}/enter`, { method: 'POST', body: JSON.stringify(data) }),
-
-  skipTrade: (id: number, data: { skip_reason: string; emotions_entry?: string[] }) =>
-    request<Trade>(`/trades/${id}/skip`, { method: 'POST', body: JSON.stringify(data) }),
+    chart_url?: string;
+  }) => request<Trade>('/trades', { method: 'POST', body: JSON.stringify(payload) }),
 
   closeTrade: (id: number, data: {
     status: CloseStatus; exit_price: number;
@@ -262,6 +298,17 @@ export const api = {
 
   deleteTrade: (id: number) =>
     request<{ ok: boolean }>(`/trades/${id}`, { method: 'DELETE' }),
+
+  getDashboard: () => request<Dashboard>('/dashboard'),
+
+  addTrail: (tradeId: number, price: number, note?: string) =>
+    request<Trade>(`/trades/${tradeId}/trails`, {
+      method: 'POST',
+      body: JSON.stringify({ price, note }),
+    }),
+
+  deleteTrail: (tradeId: number, index: number) =>
+    request<Trade>(`/trades/${tradeId}/trails/${index}`, { method: 'DELETE' }),
 
   listStrategies: () => request<Strategy[]>('/strategies'),
   createStrategy: (data: Omit<Strategy, 'id' | 'created_at'>) =>
