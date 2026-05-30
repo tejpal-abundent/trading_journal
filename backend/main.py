@@ -155,6 +155,8 @@ else:
             "chart_url": t.chart_url or "",
             "confluences": t.confluences or ",",
             "mfe_r": t.mfe_r, "mae_r": t.mae_r,
+            "trailed_stops": t.trailed_stops or "[]",
+            "updated_at": str(t.updated_at) if t.updated_at else None,
             "created_at": str(t.created_at) if t.created_at else None,
             "closed_at": str(t.closed_at) if t.closed_at else None,
         }
@@ -279,6 +281,11 @@ def _parse_trade(row: dict) -> dict:
         try: pe = json.loads(pe)
         except: pe = []
 
+    ts = row.get("trailed_stops", "[]")
+    if isinstance(ts, str):
+        try: ts = json.loads(ts)
+        except: ts = []
+
     def _f(key):
         v = row.get(key)
         return float(v) if v not in (None, "") else None
@@ -321,6 +328,8 @@ def _parse_trade(row: dict) -> dict:
         "chart_url": row.get("chart_url") or "",
         "confluences": _tags("confluences"),
         "mfe_r": _f("mfe_r"), "mae_r": _f("mae_r"),
+        "trailed_stops": ts,
+        "updated_at": row.get("updated_at"),
         "created_at": row.get("created_at"),
         "closed_at": row.get("closed_at"),
     }

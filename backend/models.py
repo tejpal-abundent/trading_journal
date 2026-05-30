@@ -49,6 +49,8 @@ class Trade(Base):
     confluences = Column(String(2000), default=",")
     mfe_r = Column(Float, nullable=True)
     mae_r = Column(Float, nullable=True)
+    trailed_stops = Column(String(4000), default="[]")
+    updated_at = Column(DateTime, nullable=True)
 
     created_at = Column(DateTime, server_default=func.now())
     closed_at = Column(DateTime, nullable=True)

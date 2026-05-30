@@ -40,6 +40,8 @@ V2_ALTERS = [
     "ALTER TABLE trades ADD COLUMN confluences TEXT DEFAULT ','",
     "ALTER TABLE trades ADD COLUMN mfe_r REAL",
     "ALTER TABLE trades ADD COLUMN mae_r REAL",
+    "ALTER TABLE trades ADD COLUMN trailed_stops TEXT DEFAULT '[]'",
+    "ALTER TABLE trades ADD COLUMN updated_at TEXT",
 ]
 
 NEW_TABLES = [
@@ -119,3 +121,9 @@ def run_migrations(execute_fn, fetch_one_fn):
             "UPDATE trades SET retroactive=1 WHERE status IN ('win','loss','breakeven')"
         )
         execute_fn("INSERT INTO _migrations (name) VALUES (?)", ["v2_status_backfill"])
+
+    # 6. One-time: backfill updated_at = created_at where null
+    already = fetch_one_fn("SELECT name FROM _migrations WHERE name = ?", ["v3_updated_at_backfill"])
+    if not already:
+        execute_fn("UPDATE trades SET updated_at = created_at WHERE updated_at IS NULL")
+        execute_fn("INSERT INTO _migrations (name) VALUES (?)", ["v3_updated_at_backfill"])
