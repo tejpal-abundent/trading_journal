@@ -190,3 +190,14 @@ input:focus, select:focus, textarea:focus {
 .text-emerald-700 { color: var(--green); }
 .bg-gray-100 { background: var(--bg3); }
 .text-gray-700 { color: var(--text2); }
+
+/* Layout: app fills viewport; nav top, content row below */
+.app { display: flex; flex-direction: column; height: 100vh; }
+.nav { flex: 0 0 auto; }
+.main { min-width: 0; }
+
+/* Mobile: stack the rail below the main */
+@media (max-width: 900px) {
+  .app > div[style*="display: flex"] { flex-direction: column; }
+  aside { width: 100% !important; min-width: 0 !important; border-left: none !important; border-top: 1px solid var(--border); }
+}

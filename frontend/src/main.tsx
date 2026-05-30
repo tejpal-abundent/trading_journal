@@ -1,39 +1,48 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom'
-import PlanForm from './components/PlanForm'
-import TradeList from './components/TradeList'
-import Review from './components/Review'
-import './index.css'
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { BrowserRouter, Routes, Route, NavLink, Navigate, Link } from "react-router-dom";
+import DashboardPage from "./components/Dashboard";
+import TradeDetailPage from "./components/TradeDetailPage";
+import NewTradePage from "./components/NewTradePage";
+import TradeRail from "./components/TradeRail";
+import Review from "./components/Review";
+import "./index.css";
 
-function App() {
+function Shell() {
   return (
     <BrowserRouter>
       <div className="app">
         <nav className="nav">
           <h1 className="nav-title">Trading Journal</h1>
           <div className="nav-links">
-            <NavLink to="/plan" end>Plan</NavLink>
-            <NavLink to="/trades">Trades</NavLink>
+            <NavLink to="/" end>Dashboard</NavLink>
             <NavLink to="/review">Review</NavLink>
+            <Link to="/trade/new" className="btn btn-sm btn-primary">+ New Trade</Link>
+            <Link to="/trade/new?mode=retro" className="btn btn-sm btn-ghost">Log retro</Link>
           </div>
         </nav>
-        <main className="main">
-          <Routes>
-            <Route path="/" element={<Navigate to="/plan" replace />} />
-            <Route path="/plan" element={<PlanForm />} />
-            <Route path="/trades" element={<TradeList />} />
-            <Route path="/review" element={<Review />} />
-            <Route path="/analytics" element={<Navigate to="/review" replace />} />
-          </Routes>
-        </main>
+        <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
+          <main className="main" style={{ flex: 1, padding: 16, overflowY: "auto" }}>
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/trade/new" element={<NewTradePage />} />
+              <Route path="/trade/:id" element={<TradeDetailPage />} />
+              <Route path="/review" element={<Review />} />
+              <Route path="/plan" element={<Navigate to="/" replace />} />
+              <Route path="/trades" element={<Navigate to="/" replace />} />
+              <Route path="/analytics" element={<Navigate to="/review" replace />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
+          <TradeRail />
+        </div>
       </div>
     </BrowserRouter>
-  )
+  );
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    <Shell />
   </React.StrictMode>
-)
+);
