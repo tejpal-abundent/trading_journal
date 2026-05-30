@@ -20,23 +20,24 @@ export function parseTradingViewSnapshot(url: string): string | null {
 
 /**
  * Map the journal's timeframe codes to TradingView interval strings.
+ * Case-insensitive. Accepts "4h", "4H", "4hr", "1d", "1D", etc.
  * Unknown codes fall back to daily ("D").
  */
 export function timeframeToInterval(tf: string): string {
+  const k = (tf || "").toLowerCase().replace(/hr$/, "h");
   const map: Record<string, string> = {
     "1m": "1", "3m": "3", "5m": "5", "15m": "15", "30m": "30",
-    "1h": "60", "2h": "120", "4h": "240", "6h": "360",
-    "1d": "D", "3d": "3D", "1w": "W", "1M": "M",
+    "1h": "60", "2h": "120", "4h": "240", "6h": "360", "12h": "720",
+    "1d": "D", "3d": "3D", "1w": "W", "1mo": "M",
   };
-  return map[tf] ?? "D";
+  return map[k] ?? "D";
 }
 
 /**
- * Best-effort exchange-prefix the symbol for the TradingView widget.
- * If the pair already contains a colon (e.g. "BINANCE:BTCUSDT"), return as-is.
- * Otherwise assume crypto and prefix with BINANCE:.
+ * Pass the symbol to TradingView as-is. TradingView will resolve unprefixed
+ * symbols across asset classes (forex, crypto, equities). If the user wants
+ * to force an exchange they can write e.g. "BINANCE:BTCUSDT" themselves.
  */
 export function exchangePrefixedSymbol(pair: string): string {
-  if (pair.includes(":")) return pair;
-  return `BINANCE:${pair}`;
+  return pair;
 }
