@@ -34,8 +34,6 @@ export default function CloseTradePanel({ trade, onClosed, onCancel }: Props) {
         emotions_exit: emotionsExit.split(",").map(s => s.trim()).filter(Boolean),
         feelings_exit: feelingsExit,
         lessons,
-        chart_url: trade.chart_url || "",
-        partial_exits: [],
       });
       onClosed(updated);
     } finally { setBusy(false); }

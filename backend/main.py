@@ -385,8 +385,8 @@ class TradeClose(BaseModel):
     emotions_exit: list[str] = []
     feelings_exit: str = ""
     lessons: str = ""
-    chart_url: str = ""
-    partial_exits: list[dict] = []
+    chart_url: Optional[str] = None
+    partial_exits: Optional[list[dict]] = None
     mfe_r: Optional[float] = None
     mae_r: Optional[float] = None
 
@@ -582,9 +582,12 @@ def create_trade(trade: TradeEnterCreate):
 
 
 @app.get("/api/trades")
-def list_trades(status: Optional[str] = None, limit: int = 100):
+def list_trades(status: Optional[str] = None, limit: int = 100, include_archived: bool = False):
     rows = db_list_trades(status, limit)
-    return [_parse_trade(r) for r in rows]
+    out = [_parse_trade(r) for r in rows]
+    if not include_archived:
+        out = [t for t in out if t.get("status") not in ("planned", "skipped")]
+    return out
 
 
 @app.get("/api/trades/{trade_id}")
@@ -704,13 +707,15 @@ def close_trade(trade_id: int, data: TradeClose):
         "emotions_exit": _tags_to_db(data.emotions_exit or []),
         "feelings_exit": data.feelings_exit or "",
         "lessons": data.lessons or "",
-        "chart_url": data.chart_url or "",
-        "partial_exits": json.dumps(data.partial_exits or []),
         "mfe_r": data.mfe_r,
         "mae_r": data.mae_r,
         "closed_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
     }
+    if data.chart_url is not None:
+        update["chart_url"] = data.chart_url
+    if data.partial_exits is not None:
+        update["partial_exits"] = json.dumps(data.partial_exits)
     row = db_update_trade(trade_id, update)
     return _parse_trade(row)
 

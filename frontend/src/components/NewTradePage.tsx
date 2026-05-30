@@ -20,6 +20,7 @@ export default function NewTradePage() {
   const [accountSize, setAccountSize] = useState("");
   const [notes, setNotes] = useState("");
   const [chartUrl, setChartUrl] = useState("");
+  const [confluences, setConfluences] = useState("");
   const [busy, setBusy] = useState(false);
 
   // Retro extras
@@ -34,7 +35,9 @@ export default function NewTradePage() {
         const t = await api.createRetroactiveTrade({
           pair, direction, timeframe, strategy,
           setup_score: parseInt(setupScore) || 0, verdict,
-          criteria_checked: [], confluences: [], notes,
+          criteria_checked: [],
+          confluences: confluences.split(",").map(s => s.trim()).filter(Boolean),
+          notes,
           entry_price: parseFloat(entryPrice), stop_loss: parseFloat(stopLoss),
           take_profit: takeProfit === "" ? null : parseFloat(takeProfit),
           position_size: positionSize === "" ? null : parseFloat(positionSize),
@@ -48,7 +51,9 @@ export default function NewTradePage() {
         const t = await api.createTrade({
           pair, direction, timeframe, strategy,
           setup_score: parseInt(setupScore) || 0, verdict,
-          criteria_checked: [], confluences: [], notes,
+          criteria_checked: [],
+          confluences: confluences.split(",").map(s => s.trim()).filter(Boolean),
+          notes,
           entry_price: parseFloat(entryPrice), stop_loss: parseFloat(stopLoss),
           take_profit: takeProfit === "" ? null : parseFloat(takeProfit),
           position_size: parseFloat(positionSize),
@@ -76,6 +81,7 @@ export default function NewTradePage() {
         <Field label="Position size" value={positionSize} onChange={setPositionSize} type="number" />
         <Field label="Account size" value={accountSize} onChange={setAccountSize} type="number" />
         <Field label="Chart URL (opt)" value={chartUrl} onChange={setChartUrl} />
+        <Field label="Confluences (comma-sep)" value={confluences} onChange={setConfluences} />
       </div>
       {isRetro && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 8 }}>

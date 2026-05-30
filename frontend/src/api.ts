@@ -280,7 +280,8 @@ export const api = {
     pnl?: number | null; pnl_percent?: number | null; rr_achieved?: number | null;
     rules_followed?: boolean | null;
     mistake_tags?: string[]; emotions_exit?: string[];
-    feelings_exit?: string; lessons?: string; chart_url?: string;
+    feelings_exit?: string; lessons?: string;
+    chart_url?: string;
     partial_exits?: PartialExit[];
     mfe_r?: number | null; mae_r?: number | null;
   }) => request<Trade>(`/trades/${id}/close`, { method: 'POST', body: JSON.stringify(data) }),
