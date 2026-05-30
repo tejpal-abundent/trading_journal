@@ -298,6 +298,21 @@ def _parse_trade(row: dict) -> dict:
         raw = row.get(key) or ","
         return [t for t in raw.split(",") if t]
 
+    # Compute r_locked_at_penultimate_trail (derived; not stored)
+    from risk import compute_rr as _compute_rr
+    try:
+        _rr = _compute_rr(
+            entry=_f("entry_price"),
+            exit_price=_f("exit_price"),
+            stop_loss=_f("stop_loss"),
+            direction=row.get("direction"),
+            status=row.get("status"),
+            trailed_stops=ts if isinstance(ts, list) else [],
+        )
+        _r_locked = _rr["r_locked_at_penultimate_trail"]
+    except Exception:
+        _r_locked = None
+
     return {
         "id": int(row["id"]),
         "pair": row["pair"], "direction": row["direction"], "timeframe": row["timeframe"],
@@ -320,6 +335,7 @@ def _parse_trade(row: dict) -> dict:
         "skip_reason": row.get("skip_reason") or "",
         "partial_exits": pe,
         "pnl": _f("pnl"), "pnl_percent": _f("pnl_percent"), "rr_achieved": _f("rr_achieved"),
+        "r_locked_at_penultimate_trail": _r_locked,
         "rules_followed": (None if row.get("rules_followed") is None else bool(_i("rules_followed"))),
         "mistake_tags": _tags("mistake_tags"),
         "emotions_exit": _tags("emotions_exit"),
@@ -454,6 +470,7 @@ class TradeUpdate(BaseModel):
     confluences: Optional[list[str]] = None
     mfe_r: Optional[float] = None
     mae_r: Optional[float] = None
+    trailed_stops: Optional[list[dict]] = None
 
 
 def _tags_to_db(tags: list[str]) -> str:
@@ -567,7 +584,7 @@ def get_trade(trade_id: int):
 @app.patch("/api/trades/{trade_id}")
 def update_trade(trade_id: int, data: TradeUpdate):
     import traceback
-    from risk import compute_risk
+    from risk import compute_risk, compute_rr
     try:
         existing = db_get_trade(trade_id)
         if not existing:
@@ -580,6 +597,10 @@ def update_trade(trade_id: int, data: TradeUpdate):
                 update_data[key] = _tags_to_db(update_data[key] or [])
         if "partial_exits" in update_data:
             update_data["partial_exits"] = json.dumps(update_data["partial_exits"] or [])
+        if "trailed_stops" in update_data:
+            ts = update_data["trailed_stops"] or []
+            ts_sorted = sorted(ts, key=lambda s: s.get("at", ""))
+            update_data["trailed_stops"] = json.dumps(ts_sorted)
         if "rules_followed" in update_data and update_data["rules_followed"] is not None:
             update_data["rules_followed"] = int(update_data["rules_followed"])
 
@@ -588,11 +609,39 @@ def update_trade(trade_id: int, data: TradeUpdate):
 
         risk_keys = {"entry_price", "stop_loss", "position_size", "account_size"}
         if risk_keys & set(update_data.keys()):
-            merged = {**(existing or {}), **update_data}
+            merged = {**(_parse_trade(existing) or {}), **update_data}
             risk = compute_risk(merged.get("entry_price"), merged.get("stop_loss"),
                                 merged.get("position_size"), merged.get("account_size"))
             update_data["risk_dollars"] = risk["risk_dollars"]
             update_data["risk_percent"] = risk["risk_percent"]
+
+        # Recompute RR if any RR-affecting field changed AND the trade is closed
+        merged = {**(_parse_trade(existing) or {}), **update_data}
+        merged_ts = update_data.get("trailed_stops")
+        if isinstance(merged_ts, str):
+            try: merged_ts = json.loads(merged_ts)
+            except: merged_ts = []
+        elif merged_ts is None:
+            merged_ts = merged.get("trailed_stops") or []
+            if isinstance(merged_ts, str):
+                try: merged_ts = json.loads(merged_ts)
+                except: merged_ts = []
+        rr_keys = {"entry_price", "exit_price", "stop_loss", "trailed_stops"}
+        if (rr_keys & set(update_data.keys())) and merged.get("status") in ("win", "loss", "breakeven"):
+            try:
+                rr = compute_rr(
+                    entry=merged.get("entry_price"),
+                    exit_price=merged.get("exit_price"),
+                    stop_loss=merged.get("stop_loss"),
+                    direction=merged.get("direction"),
+                    status=merged.get("status"),
+                    trailed_stops=merged_ts,
+                )
+                update_data["rr_achieved"] = rr["rr_achieved"]
+            except ValueError:
+                pass  # entry == stop_loss or bad direction; leave RR alone
+
+        update_data["updated_at"] = datetime.utcnow()
 
         row = db_update_trade(trade_id, update_data)
         return _parse_trade(row)
@@ -647,17 +696,36 @@ def skip_trade(trade_id: int, data: TradeSkip):
 
 @app.post("/api/trades/{trade_id}/close")
 def close_trade(trade_id: int, data: TradeClose):
+    from risk import compute_rr
     if data.status not in ("win", "loss", "breakeven"):
         raise HTTPException(400, "status must be win | loss | breakeven")
     existing = db_get_trade(trade_id)
     if not existing:
         raise HTTPException(404, "Trade not found")
+
+    parsed = _parse_trade(existing)
+
+    rr_achieved = data.rr_achieved
+    try:
+        rr = compute_rr(
+            entry=parsed.get("entry_price"),
+            exit_price=data.exit_price,
+            stop_loss=parsed.get("stop_loss"),
+            direction=parsed.get("direction"),
+            status=data.status,
+            trailed_stops=parsed.get("trailed_stops") or [],
+        )
+        if rr["rr_achieved"] is not None:
+            rr_achieved = rr["rr_achieved"]
+    except ValueError:
+        pass
+
     update = {
         "status": data.status,
         "exit_price": data.exit_price,
         "pnl": data.pnl,
         "pnl_percent": data.pnl_percent,
-        "rr_achieved": data.rr_achieved,
+        "rr_achieved": rr_achieved,
         "rules_followed": (None if data.rules_followed is None else int(data.rules_followed)),
         "mistake_tags": _tags_to_db(data.mistake_tags or []),
         "emotions_exit": _tags_to_db(data.emotions_exit or []),
@@ -668,6 +736,7 @@ def close_trade(trade_id: int, data: TradeClose):
         "mfe_r": data.mfe_r,
         "mae_r": data.mae_r,
         "closed_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow(),
     }
     row = db_update_trade(trade_id, update)
     return _parse_trade(row)
