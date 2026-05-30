@@ -473,6 +473,11 @@ class TradeUpdate(BaseModel):
     trailed_stops: Optional[list[dict]] = None
 
 
+class TrailAppend(BaseModel):
+    price: float
+    note: Optional[str] = None
+
+
 def _tags_to_db(tags: list[str]) -> str:
     """Encode a tag list as a comma-wrapped string. Empty list -> ','."""
     if not tags:
@@ -739,6 +744,47 @@ def close_trade(trade_id: int, data: TradeClose):
         "updated_at": datetime.utcnow(),
     }
     row = db_update_trade(trade_id, update)
+    return _parse_trade(row)
+
+
+@app.post("/api/trades/{trade_id}/trails")
+def append_trail(trade_id: int, data: TrailAppend):
+    existing = db_get_trade(trade_id)
+    if not existing:
+        raise HTTPException(404, "Trade not found")
+    parsed = _parse_trade(existing)
+    if parsed.get("status") != "entered":
+        raise HTTPException(400, "Trails can only be added to entered trades")
+    current = parsed.get("trailed_stops") or []
+    new_trail = {
+        "price": data.price,
+        "at": datetime.utcnow().isoformat() + "Z",
+    }
+    if data.note:
+        new_trail["note"] = data.note
+    current.append(new_trail)
+    current.sort(key=lambda s: s.get("at", ""))
+    row = db_update_trade(trade_id, {
+        "trailed_stops": json.dumps(current),
+        "updated_at": datetime.utcnow(),
+    })
+    return _parse_trade(row)
+
+
+@app.delete("/api/trades/{trade_id}/trails/{index}")
+def delete_trail(trade_id: int, index: int):
+    existing = db_get_trade(trade_id)
+    if not existing:
+        raise HTTPException(404, "Trade not found")
+    parsed = _parse_trade(existing)
+    current = parsed.get("trailed_stops") or []
+    if index < 0 or index >= len(current):
+        raise HTTPException(400, f"Trail index {index} out of range (0..{len(current)-1})")
+    del current[index]
+    row = db_update_trade(trade_id, {
+        "trailed_stops": json.dumps(current),
+        "updated_at": datetime.utcnow(),
+    })
     return _parse_trade(row)
 
 
