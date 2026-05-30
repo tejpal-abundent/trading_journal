@@ -843,6 +843,27 @@ def get_analytics(days: int | None = None,
     return _compute_analytics_range(start_from, end_to, days, confluence_filter)
 
 
+@app.get("/api/dashboard")
+def get_dashboard():
+    from dashboard import compute_dashboard
+
+    # Load all trades (the dashboard windows the data itself)
+    rows = db_list_trades(None, 100000)
+    trades = [_parse_trade(r) for r in rows]
+
+    # Latest snapshot balance for equity baseline
+    if USE_TURSO:
+        snap = fetch_one("SELECT * FROM account_snapshots ORDER BY id DESC LIMIT 1")
+    else:
+        from sqlalchemy import text as _text
+        with engine.connect() as conn:
+            row = conn.execute(_text("SELECT * FROM account_snapshots ORDER BY id DESC LIMIT 1")).mappings().first()
+            snap = dict(row) if row else None
+
+    baseline = float(snap["balance"]) if snap else None
+    return compute_dashboard(trades, latest_snapshot_balance=baseline)
+
+
 # --- Strategies ---
 
 @app.get("/api/strategies")
