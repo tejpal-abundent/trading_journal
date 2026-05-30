@@ -106,7 +106,7 @@ def test_excludes_planned_and_skipped_from_pnl():
         _t(2, 999, "planned", "2026-05-30T10:00:00", None),
         _t(3, 999, "skipped", "2026-05-30T10:00:00", "2026-05-30T15:00:00"),
     ]
-    out = compute_dashboard(trades, latest_snapshot_balance=None, today=date(2026, 6, 1))
+    out = compute_dashboard(trades, latest_snapshot_balance=None, today=date(2026, 5, 31))
     assert out["this_month"]["pnl"] == 100
     assert out["this_month"]["trades"] == 1
 

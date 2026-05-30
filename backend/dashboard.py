@@ -173,7 +173,6 @@ def compute_dashboard(
 
     # --- this_week / this_month / ytd ---
     this_week_start = _week_start(today)
-    this_month_start = today - timedelta(days=30)
     this_week = {"label": _label_week(this_week_start), "pnl": 0, "trades": 0, "wins": 0}
     this_month = {"label": _label_month(today), "pnl": 0, "trades": 0, "wins": 0}
     ytd = {"label": f"YTD {today.year}", "pnl": 0, "trades": 0, "wins": 0}
@@ -186,7 +185,7 @@ def compute_dashboard(
         is_win = t.get("status") == "win"
         if cd >= this_week_start and cd <= today:
             this_week["pnl"] += pnl; this_week["trades"] += 1; this_week["wins"] += int(is_win)
-        if cd >= this_month_start and cd <= today:
+        if cd.year == today.year and cd.month == today.month:
             this_month["pnl"] += pnl; this_month["trades"] += 1; this_month["wins"] += int(is_win)
         if cd.year == today.year:
             ytd["pnl"] += pnl; ytd["trades"] += 1; ytd["wins"] += int(is_win)
