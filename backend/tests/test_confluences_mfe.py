@@ -102,15 +102,13 @@ def test_create_plan_with_confluences_and_close_with_mfe_mae(tmp_path, monkeypat
         "setup_score": 75, "verdict": "B SETUP",
         "criteria_checked": ["trend", "zone", "signal", "failure"],
         "confluences": ["london_open", "htf_aligned", "30min_reversal"],
+        "entry_price": 1.10, "stop_loss": 1.09,
+        "position_size": 1.0, "account_size": 10000.0,
     })
     assert r.status_code == 200, r.text
     tid = r.json()["id"]
     assert sorted(r.json()["confluences"]) == ["30min_reversal", "htf_aligned", "london_open"]
 
-    c.post(f"/api/trades/{tid}/enter", json={
-        "entry_price": 1.10, "stop_loss": 1.09,
-        "position_size": 1.0, "account_size": 10000.0,
-    })
     r = c.post(f"/api/trades/{tid}/close", json={
         "status": "win", "exit_price": 1.11,
         "pnl": 10.0, "rr_achieved": 1.0,

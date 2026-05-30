@@ -13,15 +13,11 @@ def _make_entered_trade(client, pair="TRAILS1"):
     r = client.post("/api/trades", json={
         "pair": pair, "direction": "LONG", "timeframe": "15m",
         "strategy": "Zone Failure", "setup_score": 80, "verdict": "A",
-        "criteria_checked": [], "confluences": []
-    })
-    tid = r.json()["id"]
-    client.patch(f"/api/trades/{tid}", json={
-        "status": "entered",
+        "criteria_checked": [], "confluences": [],
         "entry_price": 100.0, "stop_loss": 90.0,
         "position_size": 1.0, "account_size": 1000.0,
     })
-    return tid
+    return r.json()["id"]
 
 
 def test_post_trail_appends(client):

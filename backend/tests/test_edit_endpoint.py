@@ -11,20 +11,14 @@ def client():
 
 
 def _create_open_trade(client, pair="BTCUSDT"):
-    """Create an entered trade. POST /api/trades currently creates 'planned' (until Task 7);
-    we PATCH to entered + set risk fields. After Task 7 ships, the helper simplifies."""
     r = client.post("/api/trades", json={
         "pair": pair, "direction": "LONG", "timeframe": "15m",
         "strategy": "Zone Failure", "setup_score": 80, "verdict": "A",
-        "criteria_checked": [], "confluences": []
-    })
-    tid = r.json()["id"]
-    client.patch(f"/api/trades/{tid}", json={
-        "status": "entered",
+        "criteria_checked": [], "confluences": [],
         "entry_price": 100.0, "stop_loss": 90.0,
         "position_size": 1.0, "account_size": 1000.0,
     })
-    return tid
+    return r.json()["id"]
 
 
 def test_patch_bumps_updated_at(client):

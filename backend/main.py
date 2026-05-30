@@ -353,7 +353,7 @@ def _parse_trade(row: dict) -> dict:
 
 # --- Schemas ---
 
-class TradeCreatePlan(BaseModel):
+class TradeEnterCreate(BaseModel):
     pair: str
     direction: str
     timeframe: str
@@ -362,14 +362,7 @@ class TradeCreatePlan(BaseModel):
     verdict: str
     criteria_checked: list[str]
     notes: str = ""
-    planned_entry: Optional[float] = None
-    planned_stop: Optional[float] = None
-    planned_target: Optional[float] = None
-    planned_rr: Optional[float] = None
     confluences: list[str] = []
-
-
-class TradeEnter(BaseModel):
     entry_price: float
     stop_loss: float
     take_profit: Optional[float] = None
@@ -378,11 +371,7 @@ class TradeEnter(BaseModel):
     entry_timing: Optional[str] = None
     emotions_entry: list[str] = []
     feelings_entry: str = ""
-
-
-class TradeSkip(BaseModel):
-    skip_reason: str
-    emotions_entry: list[str] = []
+    chart_url: str = ""
 
 
 class TradeClose(BaseModel):
@@ -563,12 +552,32 @@ def health():
 
 
 @app.post("/api/trades")
-def create_trade(trade: TradeCreatePlan):
+def create_trade(trade: TradeEnterCreate):
+    from risk import compute_risk
     data = trade.model_dump()
-    data["criteria_checked"] = json.dumps(data["criteria_checked"])
-    data["confluences"] = _tags_to_db(data.get("confluences") or [])
-    data["status"] = "planned"
-    row = db_create_trade(data)
+    risk = compute_risk(data["entry_price"], data["stop_loss"],
+                        data["position_size"], data["account_size"])
+    db_payload = {
+        "pair": data["pair"], "direction": data["direction"], "timeframe": data["timeframe"],
+        "strategy": data["strategy"], "setup_score": data["setup_score"], "verdict": data["verdict"],
+        "criteria_checked": json.dumps(data["criteria_checked"]),
+        "notes": data["notes"],
+        "confluences": _tags_to_db(data.get("confluences") or []),
+        "status": "entered",
+        "entry_price": data["entry_price"],
+        "stop_loss": data["stop_loss"],
+        "take_profit": data.get("take_profit"),
+        "position_size": data["position_size"],
+        "account_size": data["account_size"],
+        "risk_dollars": risk["risk_dollars"],
+        "risk_percent": risk["risk_percent"],
+        "entry_timing": data.get("entry_timing"),
+        "emotions_entry": _tags_to_db(data.get("emotions_entry") or []),
+        "feelings_entry": data.get("feelings_entry", ""),
+        "chart_url": data.get("chart_url", ""),
+        "updated_at": datetime.utcnow(),
+    }
+    row = db_create_trade(db_payload)
     return _parse_trade(row)
 
 
@@ -656,47 +665,6 @@ def update_trade(trade_id: int, data: TradeUpdate):
         print(f"UPDATE ERROR: {e}")
         traceback.print_exc()
         raise HTTPException(500, str(e))
-
-
-@app.post("/api/trades/{trade_id}/enter")
-def enter_trade(trade_id: int, data: TradeEnter):
-    from risk import compute_risk
-    existing = db_get_trade(trade_id)
-    if not existing:
-        raise HTTPException(404, "Trade not found")
-    payload = data.model_dump()
-    risk = compute_risk(payload["entry_price"], payload["stop_loss"],
-                        payload["position_size"], payload["account_size"])
-    update = {
-        "status": "entered",
-        "entry_price": payload["entry_price"],
-        "stop_loss": payload["stop_loss"],
-        "take_profit": payload.get("take_profit"),
-        "position_size": payload["position_size"],
-        "account_size": payload["account_size"],
-        "risk_dollars": risk["risk_dollars"],
-        "risk_percent": risk["risk_percent"],
-        "entry_timing": payload.get("entry_timing"),
-        "emotions_entry": _tags_to_db(payload.get("emotions_entry") or []),
-        "feelings_entry": payload.get("feelings_entry") or "",
-    }
-    row = db_update_trade(trade_id, update)
-    return _parse_trade(row)
-
-
-@app.post("/api/trades/{trade_id}/skip")
-def skip_trade(trade_id: int, data: TradeSkip):
-    existing = db_get_trade(trade_id)
-    if not existing:
-        raise HTTPException(404, "Trade not found")
-    update = {
-        "status": "skipped",
-        "skip_reason": data.skip_reason,
-        "emotions_entry": _tags_to_db(data.emotions_entry or []),
-        "closed_at": datetime.utcnow(),
-    }
-    row = db_update_trade(trade_id, update)
-    return _parse_trade(row)
 
 
 @app.post("/api/trades/{trade_id}/close")
