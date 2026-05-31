@@ -144,7 +144,7 @@ def run_migrations(execute_fn, fetch_one_fn):
             ("Cut losses early on structure breaks",
              "If a key level or zone breaks in the opposite direction of my position, treat it as confirmation that the move is going against me. Cut the loss immediately at 30%, 50%, or 70% of the planned risk rather than waiting for the full stop loss to be hit. If price later proves me wrong by reversing back into my original direction, re-enter the trade."),
             ("Quality trades only — every trade must be fully explainable",
-             "I only take trades I can justify in detail (clear setup, confluence, reasoning). The stop loss on every trade must sit between $100 and $150. If a trade can't meet this standard, I don't take it. Think twice before entering — only sure, high-conviction setups."),
+             "I only take trades I can justify in detail (clear setup, confluence, reasoning). The stop loss on every trade must sit between $100 and $150 until my total account reaches $12,000 (after which the range scales up). If a trade can't meet this standard, I don't take it. Think twice before entering — only sure, high-conviction setups."),
             ("Maximum 4% account risk at any time",
              "At no point may my total open risk exceed 4% of my account balance. This caps exposure across all active positions, not just per trade."),
             ("Wait for the 4H candle close",
