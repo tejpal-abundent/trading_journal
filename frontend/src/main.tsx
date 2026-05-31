@@ -6,6 +6,7 @@ import TradeDetailPage from "./components/TradeDetailPage";
 import NewTradePage from "./components/NewTradePage";
 import TradeRail from "./components/TradeRail";
 import Review from "./components/Review";
+import RulesManager from "./components/RulesManager";
 import "./index.css";
 
 function Shell() {
@@ -17,6 +18,7 @@ function Shell() {
           <div className="nav-links">
             <NavLink to="/" end>Dashboard</NavLink>
             <NavLink to="/review">Review</NavLink>
+            <NavLink to="/rules">Rules</NavLink>
             <Link to="/trade/new" className="btn btn-sm btn-primary">+ New Trade</Link>
             <Link to="/trade/new?mode=retro" className="btn btn-sm btn-ghost">Log retro</Link>
           </div>
@@ -28,6 +30,7 @@ function Shell() {
               <Route path="/trade/new" element={<NewTradePage />} />
               <Route path="/trade/:id" element={<TradeDetailPage />} />
               <Route path="/review" element={<Review />} />
+              <Route path="/rules" element={<RulesManager />} />
               <Route path="/plan" element={<Navigate to="/" replace />} />
               <Route path="/trades" element={<Navigate to="/" replace />} />
               <Route path="/analytics" element={<Navigate to="/review" replace />} />

@@ -71,6 +71,15 @@ NEW_TABLES = [
         name TEXT PRIMARY KEY,
         applied_at TEXT DEFAULT (datetime('now'))
     )""",
+    """CREATE TABLE IF NOT EXISTS trading_rules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL DEFAULT '',
+        position INTEGER NOT NULL DEFAULT 0,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+    )""",
 ]
 
 
@@ -127,3 +136,23 @@ def run_migrations(execute_fn, fetch_one_fn):
     if not already:
         execute_fn("UPDATE trades SET updated_at = created_at WHERE updated_at IS NULL")
         execute_fn("INSERT INTO _migrations (name) VALUES (?)", ["v3_updated_at_backfill"])
+
+    # 7. One-time: seed the 4 starter trading rules
+    already = fetch_one_fn("SELECT name FROM _migrations WHERE name = ?", ["v4_seed_trading_rules"])
+    if not already:
+        seed = [
+            ("Cut losses early on structure breaks",
+             "If a key level or zone breaks in the opposite direction of my position, treat it as confirmation that the move is going against me. Cut the loss immediately at 30%, 50%, or 70% of the planned risk rather than waiting for the full stop loss to be hit. If price later proves me wrong by reversing back into my original direction, re-enter the trade."),
+            ("Quality trades only — every trade must be fully explainable",
+             "I only take trades I can justify in detail (clear setup, confluence, reasoning). The stop loss on every trade must sit between $100 and $150. If a trade can't meet this standard, I don't take it. Think twice before entering — only sure, high-conviction setups."),
+            ("Maximum 4% account risk at any time",
+             "At no point may my total open risk exceed 4% of my account balance. This caps exposure across all active positions, not just per trade."),
+            ("Wait for the 4H candle close",
+             "No acting on intra-candle movement. Wait for confirmation, particularly on the 4H timeframe."),
+        ]
+        for i, (title, body) in enumerate(seed):
+            execute_fn(
+                "INSERT INTO trading_rules (title, body, position) VALUES (?, ?, ?)",
+                [title, body, i],
+            )
+        execute_fn("INSERT INTO _migrations (name) VALUES (?)", ["v4_seed_trading_rules"])

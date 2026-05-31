@@ -111,6 +111,16 @@ export interface AccountSnapshot {
   note: string
 }
 
+export interface TradingRule {
+  id: number;
+  title: string;
+  body: string;
+  position: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Review {
   id: number
   period_type: 'week' | 'month' | 'custom'
@@ -324,6 +334,14 @@ export const api = {
     request<AccountSnapshot>('/account-snapshots', { method: 'POST', body: JSON.stringify(data) }),
   latestSnapshot: () =>
     request<{ balance: number | null }>('/account-snapshots/latest'),
+
+  listRules: () => request<TradingRule[]>('/rules'),
+  createRule: (data: { title: string; body?: string }) =>
+    request<TradingRule>('/rules', { method: 'POST', body: JSON.stringify(data) }),
+  updateRule: (id: number, data: Partial<TradingRule>) =>
+    request<TradingRule>(`/rules/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteRule: (id: number) =>
+    request<{ ok: boolean }>(`/rules/${id}`, { method: 'DELETE' }),
 
   listReviews: () => request<Review[]>('/reviews'),
   getReview: (id: number) => request<Review>(`/reviews/${id}`),

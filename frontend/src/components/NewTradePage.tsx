@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api";
+import NewTradeRulesReminder from "./NewTradeRulesReminder";
 
 export default function NewTradePage() {
   const navigate = useNavigate();
@@ -66,8 +67,10 @@ export default function NewTradePage() {
   };
 
   return (
-    <div className="card" style={{ maxWidth: 700 }}>
-      <h2 style={{ marginTop: 0 }}>{isRetro ? "Log closed trade" : "New trade"}</h2>
+    <div style={{ maxWidth: 700 }}>
+      <NewTradeRulesReminder />
+      <div className="card">
+        <h2 style={{ marginTop: 0 }}>{isRetro ? "Log closed trade" : "New trade"}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         <Field label="Pair" value={pair} onChange={setPair} />
         <Field label="Direction" value={direction} onChange={v => setDirection(v as any)} />
@@ -94,11 +97,12 @@ export default function NewTradePage() {
         <span className="text-xs text-2">Notes</span>
         <textarea className="input" rows={3} value={notes} onChange={e => setNotes(e.target.value)} style={{ width: "100%" }} />
       </label>
-      <div className="flex gap-2" style={{ marginTop: 12 }}>
-        <button className="btn btn-primary" disabled={busy || !pair} onClick={submit}>
-          {isRetro ? "Log trade" : "Create trade"}
-        </button>
-        <button className="btn btn-ghost" onClick={() => navigate("/")}>Cancel</button>
+        <div className="flex gap-2" style={{ marginTop: 12 }}>
+          <button className="btn btn-primary" disabled={busy || !pair} onClick={submit}>
+            {isRetro ? "Log trade" : "Create trade"}
+          </button>
+          <button className="btn btn-ghost" onClick={() => navigate("/")}>Cancel</button>
+        </div>
       </div>
     </div>
   );
