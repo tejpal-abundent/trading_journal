@@ -64,6 +64,91 @@ def _split_trade_across_months(opened: date, closed: date, pnl: float) -> dict[t
     return {k: round(v, 2) for k, v in out.items()}
 
 
+def _compute_expectancy(closed_trades: list[dict]) -> dict:
+    """Compute trading expectancy from closed trades with non-null pnl.
+
+    Returns:
+        {
+            "value": float,        # EV per trade in dollars
+            "win_rate": float,     # 0..1
+            "loss_rate": float,    # 0..1
+            "avg_win": float,      # avg pnl across winning trades
+            "avg_loss": float,     # avg pnl across losing trades (positive number, the magnitude)
+            "wins": int,
+            "losses": int,
+            "breakevens": int,
+            "trades": int,         # total trades counted (wins+losses+breakevens)
+            "last_trade_delta": float | None,  # how the most-recent closed trade changed EV
+                                                # (EV_now − EV_before_last). null if <2 trades
+        }
+    """
+    relevant = [t for t in closed_trades if t.get("pnl") is not None]
+    if not relevant:
+        return {
+            "value": 0.0, "win_rate": 0.0, "loss_rate": 0.0,
+            "avg_win": 0.0, "avg_loss": 0.0,
+            "wins": 0, "losses": 0, "breakevens": 0, "trades": 0,
+            "last_trade_delta": None,
+        }
+
+    def _ev(rows: list[dict]) -> float:
+        if not rows:
+            return 0.0
+        wins = [r["pnl"] for r in rows if r.get("status") == "win"]
+        losses = [r["pnl"] for r in rows if r.get("status") == "loss"]
+        n = len(rows)
+        if n == 0:
+            return 0.0
+        win_rate = len(wins) / n
+        loss_rate = len(losses) / n
+        avg_win = sum(wins) / len(wins) if wins else 0.0
+        avg_loss = abs(sum(losses) / len(losses)) if losses else 0.0  # magnitude
+        return win_rate * avg_win - loss_rate * avg_loss
+
+    # Sort by closed_at to identify "last trade"
+    sorted_rel = sorted(relevant, key=lambda t: t.get("closed_at") or "")
+    wins = [r["pnl"] for r in sorted_rel if r.get("status") == "win"]
+    losses = [r["pnl"] for r in sorted_rel if r.get("status") == "loss"]
+    breakevens = [r for r in sorted_rel if r.get("status") == "breakeven"]
+    n = len(sorted_rel)
+    win_rate = len(wins) / n if n else 0.0
+    loss_rate = len(losses) / n if n else 0.0
+    avg_win = (sum(wins) / len(wins)) if wins else 0.0
+    avg_loss = abs(sum(losses) / len(losses)) if losses else 0.0
+
+    ev_now = win_rate * avg_win - loss_rate * avg_loss
+    ev_before = _ev(sorted_rel[:-1]) if n >= 2 else None
+    last_delta = round(ev_now - ev_before, 2) if ev_before is not None else None
+
+    return {
+        "value": round(ev_now, 2),
+        "win_rate": round(win_rate, 4),
+        "loss_rate": round(loss_rate, 4),
+        "avg_win": round(avg_win, 2),
+        "avg_loss": round(avg_loss, 2),
+        "wins": len(wins), "losses": len(losses), "breakevens": len(breakevens),
+        "trades": n,
+        "last_trade_delta": last_delta,
+    }
+
+
+def _compute_streak(closed_trades: list[dict]) -> dict:
+    """Return current closed-trade streak by status. Breakeven breaks the streak."""
+    sorted_rel = sorted(closed_trades, key=lambda t: t.get("closed_at") or "")
+    if not sorted_rel:
+        return {"kind": "none", "length": 0}
+    last = sorted_rel[-1].get("status")
+    if last not in ("win", "loss"):
+        return {"kind": "none", "length": 0}
+    length = 0
+    for t in reversed(sorted_rel):
+        if t.get("status") == last:
+            length += 1
+        else:
+            break
+    return {"kind": last, "length": length}
+
+
 def compute_dashboard(
     trades: list[dict],
     latest_snapshot_balance: Optional[float] = None,
@@ -203,4 +288,6 @@ def compute_dashboard(
         "weekly": weekly_list,
         "daily_heatmap": daily_heatmap,
         "equity_curve": equity_curve,
+        "expectancy": _compute_expectancy(closed),
+        "streak": _compute_streak(closed),
     }

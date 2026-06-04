@@ -6,6 +6,8 @@ import WeeklyBars from "./WeeklyBars";
 import DailyHeatmap from "./DailyHeatmap";
 import EquityCurve from "./EquityCurve";
 import RulesCard from "./RulesCard";
+import EdgeCard from "./EdgeCard";
+import VarianceCoach from "./VarianceCoach";
 
 export default function DashboardPage() {
   const [d, setD] = useState<Dashboard | null>(null);
@@ -21,6 +23,8 @@ export default function DashboardPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <RulesCard />
+      <EdgeCard expectancy={d.expectancy} />
+      <VarianceCoach expectancy={d.expectancy} streak={d.streak} />
       <div className="flex gap-2 wrap">
         <KPICard label={d.this_week.label}  primary={d.this_week.pnl}  trades={d.this_week.trades}  winRate={d.this_week.win_rate} />
         <KPICard label={d.this_month.label} primary={d.this_month.pnl} trades={d.this_month.trades} winRate={d.this_month.win_rate} />

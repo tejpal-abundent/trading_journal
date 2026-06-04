@@ -37,6 +37,24 @@ export interface DashboardWeekly {
 export interface DashboardHeatCell { date: string; pnl: number; trades: number; }
 export interface DashboardEquityPoint { date: string; cumulative_pnl: number; trade_id: number; }
 
+export interface Expectancy {
+  value: number;
+  win_rate: number;
+  loss_rate: number;
+  avg_win: number;
+  avg_loss: number;
+  wins: number;
+  losses: number;
+  breakevens: number;
+  trades: number;
+  last_trade_delta: number | null;
+}
+
+export interface DashboardStreak {
+  kind: "win" | "loss" | "none";
+  length: number;
+}
+
 export interface Dashboard {
   this_week: DashboardKpi;
   this_month: DashboardKpi;
@@ -46,6 +64,8 @@ export interface Dashboard {
   weekly: DashboardWeekly[];
   daily_heatmap: DashboardHeatCell[];
   equity_curve: DashboardEquityPoint[];
+  expectancy: Expectancy;
+  streak: DashboardStreak;
 }
 
 export interface Trade {
@@ -115,6 +135,15 @@ export interface TradingRule {
   id: number;
   title: string;
   body: string;
+  position: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MindsetPrompt {
+  id: number;
+  text: string;
   position: number;
   is_active: boolean;
   created_at: string;
@@ -342,6 +371,14 @@ export const api = {
     request<TradingRule>(`/rules/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteRule: (id: number) =>
     request<{ ok: boolean }>(`/rules/${id}`, { method: 'DELETE' }),
+
+  listMindsetPrompts: () => request<MindsetPrompt[]>('/mindset-prompts'),
+  createMindsetPrompt: (data: { text: string }) =>
+    request<MindsetPrompt>('/mindset-prompts', { method: 'POST', body: JSON.stringify(data) }),
+  updateMindsetPrompt: (id: number, data: Partial<MindsetPrompt>) =>
+    request<MindsetPrompt>(`/mindset-prompts/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteMindsetPrompt: (id: number) =>
+    request<{ ok: boolean }>(`/mindset-prompts/${id}`, { method: 'DELETE' }),
 
   listReviews: () => request<Review[]>('/reviews'),
   getReview: (id: number) => request<Review>(`/reviews/${id}`),

@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { api } from "../api";
-import NewTradeRulesReminder from "./NewTradeRulesReminder";
+import { api, Expectancy, MindsetPrompt } from "../api";
 
 export default function NewTradePage() {
   const navigate = useNavigate();
@@ -28,6 +27,20 @@ export default function NewTradePage() {
   const [exitPrice, setExitPrice] = useState("");
   const [status, setStatus] = useState<"win" | "loss" | "breakeven">("win");
   const [pnl, setPnl] = useState("");
+
+  // Pre-trade ritual
+  const [acked, setAcked] = useState(false);
+  const [exp, setExp] = useState<Expectancy | null>(null);
+  const [prompt, setPrompt] = useState<MindsetPrompt | null>(null);
+
+  useEffect(() => {
+    api.getDashboard().then(d => setExp(d.expectancy)).catch(() => {});
+    api.listMindsetPrompts().then(ps => {
+      if (ps.length === 0) return;
+      // Pick a random prompt — fresh attention each time the user opens this page
+      setPrompt(ps[Math.floor(Math.random() * ps.length)]);
+    }).catch(() => {});
+  }, []);
 
   const submit = async () => {
     setBusy(true);
@@ -66,9 +79,41 @@ export default function NewTradePage() {
     } finally { setBusy(false); }
   };
 
+  // Pre-trade ritual gate (skipped for retro mode)
+  if (!isRetro && !acked) {
+    return (
+      <div className="card" style={{ maxWidth: 600, borderLeft: "4px solid var(--blue)" }}>
+        <h2 style={{ marginTop: 0 }}>Pause.</h2>
+        {exp && exp.trades > 0 && (
+          <p className="text-sm">
+            Your edge: <b style={{ color: exp.value >= 0 ? "var(--green)" : "var(--red)" }}>
+              {exp.value >= 0 ? "+" : ""}${exp.value.toFixed(2)}
+            </b> / trade across {exp.trades} trades.
+          </p>
+        )}
+        {exp && exp.trades === 0 && (
+          <p className="text-sm">No closed trades yet. You're starting your sample.</p>
+        )}
+        {prompt && (
+          <>
+            <p className="text-xs text-2" style={{ marginTop: 16, letterSpacing: 1, textTransform: "uppercase" }}>Tonight's check</p>
+            <p className="text-sm font-500" style={{ color: "var(--yellow)" }}>▸ {prompt.text}</p>
+          </>
+        )}
+        <div style={{ marginTop: 16 }}>
+          <button className="btn btn-primary" onClick={() => setAcked(true)}>
+            Yes I've thought about it →
+          </button>
+          <button className="btn btn-ghost" onClick={() => navigate("/")} style={{ marginLeft: 8 }}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ maxWidth: 700 }}>
-      <NewTradeRulesReminder />
       <div className="card">
         <h2 style={{ marginTop: 0 }}>{isRetro ? "Log closed trade" : "New trade"}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>

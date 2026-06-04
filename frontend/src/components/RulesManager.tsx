@@ -1,29 +1,48 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, TradingRule } from "../api";
+import { api, TradingRule, MindsetPrompt } from "../api";
 
 export default function RulesManager() {
   const [rules, setRules] = useState<TradingRule[]>([]);
+  const [prompts, setPrompts] = useState<MindsetPrompt[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newBody, setNewBody] = useState("");
+  const [addingPrompt, setAddingPrompt] = useState(false);
+  const [newPromptText, setNewPromptText] = useState("");
   const navigate = useNavigate();
 
-  const load = () => api.listRules().then(setRules).finally(() => setLoading(false));
-  useEffect(() => { load(); }, []);
+  const loadRules = () => api.listRules().then(setRules);
+  const loadPrompts = () => api.listMindsetPrompts().then(setPrompts);
+  const loadAll = () =>
+    Promise.all([loadRules(), loadPrompts()]).finally(() => setLoading(false));
+  useEffect(() => { loadAll(); }, []);
 
   const add = async () => {
     if (!newTitle.trim()) return;
     await api.createRule({ title: newTitle.trim(), body: newBody });
     setNewTitle(""); setNewBody(""); setAdding(false);
-    load();
+    loadRules();
   };
 
   const remove = async (id: number) => {
     if (!confirm("Delete this rule?")) return;
     await api.deleteRule(id);
-    load();
+    loadRules();
+  };
+
+  const addPrompt = async () => {
+    if (!newPromptText.trim()) return;
+    await api.createMindsetPrompt({ text: newPromptText.trim() });
+    setNewPromptText(""); setAddingPrompt(false);
+    loadPrompts();
+  };
+
+  const removePrompt = async (id: number) => {
+    if (!confirm("Delete this prompt?")) return;
+    await api.deleteMindsetPrompt(id);
+    loadPrompts();
   };
 
   if (loading) return <div className="text-2 text-sm">Loading…</div>;
@@ -57,7 +76,30 @@ export default function RulesManager() {
         <div className="text-2 text-sm">No rules yet. Click + Add rule.</div>
       )}
       {rules.map(r => (
-        <RuleEditor key={r.id} rule={r} onChange={load} onDelete={() => remove(r.id)} />
+        <RuleEditor key={r.id} rule={r} onChange={loadRules} onDelete={() => remove(r.id)} />
+      ))}
+
+      <div className="flex between center" style={{ marginTop: 24 }}>
+        <h2 style={{ margin: 0 }}>Mindset Prompts</h2>
+        <button className="btn btn-primary btn-sm" onClick={() => setAddingPrompt(true)}>+ Add prompt</button>
+      </div>
+      {addingPrompt && (
+        <div className="card" style={{ borderLeft: "3px solid var(--yellow)" }}>
+          <label style={{ display: "block", marginBottom: 8 }}>
+            <span className="text-xs text-2">Prompt text</span>
+            <textarea className="input" rows={3} value={newPromptText} onChange={e => setNewPromptText(e.target.value)} style={{ width: "100%" }} />
+          </label>
+          <div className="flex gap-2">
+            <button className="btn btn-primary btn-sm" disabled={!newPromptText.trim()} onClick={addPrompt}>Save</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => { setAddingPrompt(false); setNewPromptText(""); }}>Cancel</button>
+          </div>
+        </div>
+      )}
+      {prompts.length === 0 && !addingPrompt && (
+        <div className="text-2 text-sm">No prompts yet. Click + Add prompt.</div>
+      )}
+      {prompts.map(p => (
+        <PromptEditor key={p.id} prompt={p} onChange={loadPrompts} onDelete={() => removePrompt(p.id)} />
       ))}
     </div>
   );
@@ -107,6 +149,47 @@ function RuleEditor({ rule, onChange, onDelete }: { rule: TradingRule; onChange:
           </div>
           {rule.body && <div className="text-sm text-2" style={{ marginTop: 6, whiteSpace: "pre-wrap" }}>{rule.body}</div>}
         </>
+      )}
+    </div>
+  );
+}
+
+function PromptEditor({ prompt, onChange, onDelete }: { prompt: MindsetPrompt; onChange: () => void; onDelete: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(prompt.text);
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await api.updateMindsetPrompt(prompt.id, { text });
+      setEditing(false);
+      onChange();
+    } finally { setBusy(false); }
+  };
+  const cancel = () => { setText(prompt.text); setEditing(false); };
+
+  return (
+    <div className="card" style={{ borderLeft: "3px solid var(--yellow)" }}>
+      {editing ? (
+        <>
+          <label style={{ display: "block", marginBottom: 8 }}>
+            <span className="text-xs text-2">Prompt text</span>
+            <textarea className="input" rows={3} value={text} onChange={e => setText(e.target.value)} style={{ width: "100%" }} />
+          </label>
+          <div className="flex gap-2">
+            <button className="btn btn-primary btn-sm" disabled={busy || !text.trim()} onClick={save}>Save</button>
+            <button className="btn btn-ghost btn-sm" disabled={busy} onClick={cancel}>Cancel</button>
+          </div>
+        </>
+      ) : (
+        <div className="flex between center">
+          <div className="text-sm" style={{ flex: 1 }}>▸ {prompt.text}</div>
+          <div className="flex gap-2">
+            <button className="btn btn-ghost btn-sm" onClick={() => setEditing(true)}>Edit</button>
+            <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={onDelete}>Delete</button>
+          </div>
+        </div>
       )}
     </div>
   );

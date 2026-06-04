@@ -80,6 +80,14 @@ NEW_TABLES = [
         created_at TEXT DEFAULT (datetime('now')),
         updated_at TEXT DEFAULT (datetime('now'))
     )""",
+    """CREATE TABLE IF NOT EXISTS mindset_prompts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL,
+        position INTEGER NOT NULL DEFAULT 0,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+    )""",
 ]
 
 
@@ -156,3 +164,20 @@ def run_migrations(execute_fn, fetch_one_fn):
                 [title, body, i],
             )
         execute_fn("INSERT INTO _migrations (name) VALUES (?)", ["v4_seed_trading_rules"])
+
+    # 8. One-time: seed the 5 starter mindset prompts
+    already = fetch_one_fn("SELECT name FROM _migrations WHERE name = ?", ["v5_seed_mindset_prompts"])
+    if not already:
+        prompts = [
+            "Is it judging your system after a few trades?",
+            "Is it risking too much to feel something?",
+            "Is it confusing good outcomes with good execution?",
+            "Is it abandoning your edge when variance appears?",
+            "Is it chasing certainty in a game of probabilities?",
+        ]
+        for i, text in enumerate(prompts):
+            execute_fn(
+                "INSERT INTO mindset_prompts (text, position) VALUES (?, ?)",
+                [text, i],
+            )
+        execute_fn("INSERT INTO _migrations (name) VALUES (?)", ["v5_seed_mindset_prompts"])

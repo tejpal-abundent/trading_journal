@@ -519,6 +519,16 @@ class TradingRuleUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+class MindsetPromptCreate(BaseModel):
+    text: str
+
+
+class MindsetPromptUpdate(BaseModel):
+    text: Optional[str] = None
+    position: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
 def _parse_strategy(row):
     if not row:
         return None
@@ -538,6 +548,19 @@ def _parse_rule(row):
         "id": int(row["id"]),
         "title": row["title"],
         "body": row.get("body") or "",
+        "position": int(row.get("position") or 0),
+        "is_active": bool(row.get("is_active") or 0),
+        "created_at": row.get("created_at"),
+        "updated_at": row.get("updated_at"),
+    }
+
+
+def _parse_prompt(row):
+    if not row:
+        return None
+    return {
+        "id": int(row["id"]),
+        "text": row["text"],
         "position": int(row.get("position") or 0),
         "is_active": bool(row.get("is_active") or 0),
         "created_at": row.get("created_at"),
@@ -1119,4 +1142,76 @@ def delete_rule(rule_id: int):
         from sqlalchemy import text as _text
         with engine.begin() as conn:
             conn.execute(_text("DELETE FROM trading_rules WHERE id = :i"), {"i": rule_id})
+    return {"ok": True}
+
+
+# --- Mindset prompts ---
+
+@app.get("/api/mindset-prompts")
+def list_mindset_prompts():
+    sql = "SELECT * FROM mindset_prompts WHERE is_active = 1 ORDER BY position ASC, id ASC"
+    if USE_TURSO:
+        rows = fetch_all(sql)
+    else:
+        from sqlalchemy import text as _text
+        with engine.connect() as conn:
+            rows = [dict(r) for r in conn.execute(_text(sql)).mappings()]
+    return [_parse_prompt(r) for r in rows]
+
+
+@app.post("/api/mindset-prompts")
+def create_mindset_prompt(data: MindsetPromptCreate):
+    # Auto-assign position = max(position) + 1
+    if USE_TURSO:
+        m = fetch_one("SELECT COALESCE(MAX(position), -1) AS m FROM mindset_prompts")
+        pos = int(m["m"]) + 1
+        execute(
+            "INSERT INTO mindset_prompts (text, position) VALUES (?, ?)",
+            [data.text, pos],
+        )
+        row = fetch_one("SELECT * FROM mindset_prompts ORDER BY id DESC LIMIT 1")
+    else:
+        from sqlalchemy import text as _text
+        with engine.begin() as conn:
+            m = conn.execute(_text("SELECT COALESCE(MAX(position), -1) AS m FROM mindset_prompts")).mappings().first()
+            pos = int(m["m"]) + 1
+            conn.execute(_text("INSERT INTO mindset_prompts (text, position) VALUES (:t, :p)"),
+                         {"t": data.text, "p": pos})
+            row = dict(conn.execute(_text("SELECT * FROM mindset_prompts ORDER BY id DESC LIMIT 1")).mappings().first())
+    return _parse_prompt(row)
+
+
+@app.patch("/api/mindset-prompts/{prompt_id}")
+def update_mindset_prompt(prompt_id: int, data: MindsetPromptUpdate):
+    payload = data.model_dump(exclude_unset=True)
+    if "is_active" in payload:
+        payload["is_active"] = int(payload["is_active"])
+    if not payload:
+        raise HTTPException(400, "no fields to update")
+    payload["updated_at"] = datetime.utcnow().isoformat()
+    sets = ", ".join(f"{k} = ?" for k in payload.keys())
+    if USE_TURSO:
+        execute(f"UPDATE mindset_prompts SET {sets} WHERE id = ?", list(payload.values()) + [prompt_id])
+        row = fetch_one("SELECT * FROM mindset_prompts WHERE id = ?", [prompt_id])
+    else:
+        from sqlalchemy import text as _text
+        with engine.begin() as conn:
+            params = {**{k: v for k, v in payload.items()}, "id": prompt_id}
+            sets_sa = ", ".join(f"{k} = :{k}" for k in payload.keys())
+            conn.execute(_text(f"UPDATE mindset_prompts SET {sets_sa} WHERE id = :id"), params)
+            r = conn.execute(_text("SELECT * FROM mindset_prompts WHERE id = :id"), {"id": prompt_id}).mappings().first()
+            row = dict(r) if r else None
+    if not row:
+        raise HTTPException(404, "Prompt not found")
+    return _parse_prompt(row)
+
+
+@app.delete("/api/mindset-prompts/{prompt_id}")
+def delete_mindset_prompt(prompt_id: int):
+    if USE_TURSO:
+        execute("DELETE FROM mindset_prompts WHERE id = ?", [prompt_id])
+    else:
+        from sqlalchemy import text as _text
+        with engine.begin() as conn:
+            conn.execute(_text("DELETE FROM mindset_prompts WHERE id = :i"), {"i": prompt_id})
     return {"ok": True}
