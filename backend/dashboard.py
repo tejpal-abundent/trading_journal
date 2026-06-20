@@ -132,6 +132,113 @@ def _compute_expectancy(closed_trades: list[dict]) -> dict:
     }
 
 
+def _loss_discipline_weight(loss_magnitude: float, risk_dollars: float | None) -> float:
+    """Weight a loss by how disciplined the exit was, expressed as a fraction
+    of planned risk. Aligns with trading rule #1 (cut at 30%/50%/70% of planned
+    risk before full stop).
+
+        loss / planned_risk ≤ 30%        → 0.25  (nailed the early cut)
+        loss / planned_risk in (30,50%]  → 0.5   (cut decently)
+        loss / planned_risk in (50,70%]  → 0.75  (some discipline)
+        loss / planned_risk > 70%        → 1.0   (let it run to/near full SL)
+
+    If planned risk is missing or non-positive (legacy/retroactive trades),
+    we can't classify the discipline, so treat as a full loss.
+    """
+    if not risk_dollars or risk_dollars <= 0:
+        return 1.0
+    ratio = loss_magnitude / risk_dollars
+    if ratio <= 0.30:
+        return 0.25
+    if ratio <= 0.50:
+        return 0.5
+    if ratio <= 0.70:
+        return 0.75
+    return 1.0
+
+
+def _compute_disciplined_expectancy(closed_trades: list[dict]) -> dict:
+    """Discipline-weighted EV per trade. Same formula as true expectancy, but
+    each losing trade is scaled by `_loss_discipline_weight` (0.25/0.5/0.75/1.0)
+    based on the loss size as a fraction of planned risk.
+
+    The headline answers a what-if: "what would my edge be if I always cut
+    losses early?" The gap vs. true expectancy is the `discipline_tax` —
+    the $/trade I leave on the table by letting losses run past 70% of risk.
+
+    Returns the same shape as `_compute_expectancy` plus:
+        "discipline_tax": float,   # disciplined_value − true_value (≥ 0)
+    """
+    relevant = [t for t in closed_trades if t.get("pnl") is not None]
+    if not relevant:
+        return {
+            "value": 0.0, "win_rate": 0.0, "loss_rate": 0.0,
+            "avg_win": 0.0, "avg_loss": 0.0,
+            "wins": 0, "losses": 0, "breakevens": 0, "trades": 0,
+            "last_trade_delta": None, "discipline_tax": 0.0,
+        }
+
+    def _weighted_loss_contrib_per_trade(rows: list[dict]) -> float:
+        """sum(|pnl_i| × weight_i) / N  — the disciplined loss term per trade."""
+        n = len(rows)
+        if n == 0:
+            return 0.0
+        total = 0.0
+        for r in rows:
+            if r.get("status") != "loss":
+                continue
+            mag = abs(r["pnl"])
+            w = _loss_discipline_weight(mag, r.get("risk_dollars"))
+            total += mag * w
+        return total / n
+
+    def _ev_disciplined(rows: list[dict]) -> float:
+        n = len(rows)
+        if n == 0:
+            return 0.0
+        wins = [r["pnl"] for r in rows if r.get("status") == "win"]
+        avg_win = sum(wins) / len(wins) if wins else 0.0
+        win_rate = len(wins) / n
+        return win_rate * avg_win - _weighted_loss_contrib_per_trade(rows)
+
+    sorted_rel = sorted(relevant, key=lambda t: t.get("closed_at") or "")
+    wins = [r["pnl"] for r in sorted_rel if r.get("status") == "win"]
+    losses = [r for r in sorted_rel if r.get("status") == "loss"]
+    breakevens = [r for r in sorted_rel if r.get("status") == "breakeven"]
+    n = len(sorted_rel)
+
+    win_rate = len(wins) / n if n else 0.0
+    loss_rate = len(losses) / n if n else 0.0
+    avg_win = sum(wins) / len(wins) if wins else 0.0
+    # Disciplined avg_loss = mean of weighted loss magnitudes (for the breakdown line)
+    weighted_loss_mags = [
+        abs(r["pnl"]) * _loss_discipline_weight(abs(r["pnl"]), r.get("risk_dollars"))
+        for r in losses
+    ]
+    avg_loss_disciplined = (sum(weighted_loss_mags) / len(weighted_loss_mags)) if weighted_loss_mags else 0.0
+
+    ev_now = _ev_disciplined(sorted_rel)
+    ev_before = _ev_disciplined(sorted_rel[:-1]) if n >= 2 else None
+    last_delta = round(ev_now - ev_before, 2) if ev_before is not None else None
+
+    # Tax = how much better the disciplined edge is vs the true edge
+    true_avg_loss = abs(sum(r["pnl"] for r in losses) / len(losses)) if losses else 0.0
+    true_ev = win_rate * avg_win - loss_rate * true_avg_loss
+    discipline_tax = round(ev_now - true_ev, 2)
+
+    return {
+        "value": round(ev_now, 2),
+        "win_rate": round(win_rate, 4),
+        "loss_rate": round(loss_rate, 4),
+        "avg_win": round(avg_win, 2),
+        "avg_loss": round(avg_loss_disciplined, 2),
+        "wins": len(wins), "losses": len(losses), "breakevens": len(breakevens),
+        "trades": n,
+        "last_trade_delta": last_delta,
+        "discipline_tax": discipline_tax,
+    }
+
+
 def _compute_streak(closed_trades: list[dict]) -> dict:
     """Return current closed-trade streak by status. Breakeven breaks the streak."""
     sorted_rel = sorted(closed_trades, key=lambda t: t.get("closed_at") or "")
@@ -289,5 +396,6 @@ def compute_dashboard(
         "daily_heatmap": daily_heatmap,
         "equity_curve": equity_curve,
         "expectancy": _compute_expectancy(closed),
+        "disciplined_expectancy": _compute_disciplined_expectancy(closed),
         "streak": _compute_streak(closed),
     }

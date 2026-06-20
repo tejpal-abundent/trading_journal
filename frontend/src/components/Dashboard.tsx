@@ -23,7 +23,8 @@ export default function DashboardPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <RulesCard />
-      <EdgeCard expectancy={d.expectancy} />
+      <EdgeCard expectancy={d.expectancy} variant="true" />
+      <EdgeCard expectancy={d.disciplined_expectancy} variant="disciplined" />
       <VarianceCoach expectancy={d.expectancy} streak={d.streak} />
       <div className="flex gap-2 wrap">
         <KPICard label={d.this_week.label}  primary={d.this_week.pnl}  trades={d.this_week.trades}  winRate={d.this_week.win_rate} />

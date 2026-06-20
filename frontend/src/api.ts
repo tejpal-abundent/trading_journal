@@ -50,6 +50,12 @@ export interface Expectancy {
   last_trade_delta: number | null;
 }
 
+export interface DisciplinedExpectancy extends Expectancy {
+  // Extra $/trade you'd earn if every loss were already cut by 70% of planned
+  // risk. 0 means perfect discipline (or no losses).
+  discipline_tax: number;
+}
+
 export interface DashboardStreak {
   kind: "win" | "loss" | "none";
   length: number;
@@ -65,6 +71,7 @@ export interface Dashboard {
   daily_heatmap: DashboardHeatCell[];
   equity_curve: DashboardEquityPoint[];
   expectancy: Expectancy;
+  disciplined_expectancy: DisciplinedExpectancy;
   streak: DashboardStreak;
 }
 
