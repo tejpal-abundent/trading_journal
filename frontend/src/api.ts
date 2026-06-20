@@ -107,6 +107,7 @@ export interface Trade {
   feelings_exit: string
   lessons: string
   chart_url: string
+  close_chart_url: string
   confluences: string[]
   mfe_r: number | null
   mae_r: number | null
@@ -321,6 +322,7 @@ export const api = {
     mistake_tags?: string[]; emotions_exit?: string[];
     feelings_exit?: string; lessons?: string;
     chart_url?: string;
+    close_chart_url?: string;
     partial_exits?: PartialExit[];
     mfe_r?: number | null; mae_r?: number | null;
   }) => request<Trade>(`/trades/${id}/close`, { method: 'POST', body: JSON.stringify(data) }),

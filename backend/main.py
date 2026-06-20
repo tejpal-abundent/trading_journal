@@ -153,6 +153,7 @@ else:
             "feelings_exit": t.feelings_exit or "",
             "lessons": t.lessons or "",
             "chart_url": t.chart_url or "",
+            "close_chart_url": t.close_chart_url or "",
             "confluences": t.confluences or ",",
             "mfe_r": t.mfe_r, "mae_r": t.mae_r,
             "trailed_stops": t.trailed_stops or "[]",
@@ -342,6 +343,7 @@ def _parse_trade(row: dict) -> dict:
         "feelings_exit": row.get("feelings_exit") or "",
         "lessons": row.get("lessons") or "",
         "chart_url": row.get("chart_url") or "",
+        "close_chart_url": row.get("close_chart_url") or "",
         "confluences": _tags("confluences"),
         "mfe_r": _f("mfe_r"), "mae_r": _f("mae_r"),
         "trailed_stops": ts,
@@ -386,6 +388,7 @@ class TradeClose(BaseModel):
     feelings_exit: str = ""
     lessons: str = ""
     chart_url: Optional[str] = None
+    close_chart_url: Optional[str] = None
     partial_exits: Optional[list[dict]] = None
     mfe_r: Optional[float] = None
     mae_r: Optional[float] = None
@@ -423,6 +426,7 @@ class TradeRetroactive(BaseModel):
     feelings_exit: str = ""
     lessons: str = ""
     chart_url: str = ""
+    close_chart_url: str = ""
     partial_exits: list[dict] = []
     confluences: list[str] = []
     mfe_r: Optional[float] = None
@@ -456,6 +460,7 @@ class TradeUpdate(BaseModel):
     feelings_exit: Optional[str] = None
     lessons: Optional[str] = None
     chart_url: Optional[str] = None
+    close_chart_url: Optional[str] = None
     confluences: Optional[list[str]] = None
     mfe_r: Optional[float] = None
     mae_r: Optional[float] = None
@@ -763,6 +768,8 @@ def close_trade(trade_id: int, data: TradeClose):
     }
     if data.chart_url is not None:
         update["chart_url"] = data.chart_url
+    if data.close_chart_url is not None:
+        update["close_chart_url"] = data.close_chart_url
     if data.partial_exits is not None:
         update["partial_exits"] = json.dumps(data.partial_exits)
     row = db_update_trade(trade_id, update)
@@ -838,6 +845,7 @@ def create_retroactive_trade(trade: TradeRetroactive):
         "emotions_exit": _tags_to_db(trade.emotions_exit or []),
         "feelings_exit": trade.feelings_exit,
         "lessons": trade.lessons, "chart_url": trade.chart_url,
+        "close_chart_url": trade.close_chart_url,
         "partial_exits": json.dumps(trade.partial_exits or []),
         "confluences": _tags_to_db(trade.confluences or []),
         "mfe_r": trade.mfe_r, "mae_r": trade.mae_r,

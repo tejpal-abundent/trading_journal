@@ -46,6 +46,7 @@ class Trade(Base):
     feelings_exit = Column(String(2000), default="")
     lessons = Column(String(2000), default="")
     chart_url = Column(String(500), default="")
+    close_chart_url = Column(String(500), default="")
     confluences = Column(String(2000), default=",")
     mfe_r = Column(Float, nullable=True)
     mae_r = Column(Float, nullable=True)

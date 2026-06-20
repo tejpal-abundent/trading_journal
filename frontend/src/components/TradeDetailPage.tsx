@@ -90,8 +90,21 @@ export default function TradeDetailPage() {
         </div>
       </div>
 
-      {/* Chart */}
-      <ChartEmbed snapshotUrl={trade.chart_url || ""} symbol={trade.pair} timeframe={trade.timeframe} />
+      {/* Entry chart */}
+      {trade.chart_url && (
+        <div>
+          <div className="text-xs text-2" style={{ marginBottom: 4 }}>Entry chart</div>
+          <ChartEmbed snapshotUrl={trade.chart_url} />
+        </div>
+      )}
+
+      {/* Exit chart (snapshot captured at close) */}
+      {trade.close_chart_url && (
+        <div>
+          <div className="text-xs text-2" style={{ marginBottom: 4 }}>Exit chart</div>
+          <ChartEmbed snapshotUrl={trade.close_chart_url} />
+        </div>
+      )}
 
       {/* Numbers strip */}
       <div className="card">
@@ -154,6 +167,7 @@ export default function TradeDetailPage() {
           <h3 style={{ marginTop: 0 }}>Outcome</h3>
           {F("Lessons", "lessons", "textarea")}
           {F("Feelings at exit", "feelings_exit", "textarea")}
+          {F("Exit chart URL", "close_chart_url")}
           <div style={{ marginTop: 8 }}>
             <div className="text-xs text-2">Mistake tags</div>
             <div className="chip-row">

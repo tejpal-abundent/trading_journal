@@ -17,6 +17,7 @@ export default function CloseTradePanel({ trade, onClosed, onCancel }: Props) {
   const [emotionsExit, setEmotionsExit] = useState("");
   const [feelingsExit, setFeelingsExit] = useState("");
   const [lessons, setLessons] = useState("");
+  const [closeChartUrl, setCloseChartUrl] = useState("");
   const [rulesFollowed, setRulesFollowed] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -34,6 +35,7 @@ export default function CloseTradePanel({ trade, onClosed, onCancel }: Props) {
         emotions_exit: emotionsExit.split(",").map(s => s.trim()).filter(Boolean),
         feelings_exit: feelingsExit,
         lessons,
+        close_chart_url: closeChartUrl.trim(),
       });
       onClosed(updated);
     } finally { setBusy(false); }
@@ -82,6 +84,17 @@ export default function CloseTradePanel({ trade, onClosed, onCancel }: Props) {
       <label style={{ display: "block", marginBottom: 8 }}>
         <span className="text-xs text-2">Lessons</span>
         <textarea className="input" rows={3} value={lessons} onChange={e => setLessons(e.target.value)} style={{ width: "100%" }} />
+      </label>
+      <label style={{ display: "block", marginBottom: 8 }}>
+        <span className="text-xs text-2">Exit chart URL (TradingView snapshot link)</span>
+        <input
+          className="input"
+          type="url"
+          placeholder="https://www.tradingview.com/x/HASH/"
+          value={closeChartUrl}
+          onChange={e => setCloseChartUrl(e.target.value)}
+          style={{ width: "100%" }}
+        />
       </label>
       <div className="flex gap-2" style={{ marginTop: 8 }}>
         <button className="btn btn-primary" disabled={busy} onClick={submit}>Close trade</button>
