@@ -55,6 +55,11 @@ export default function EdgeCard({ expectancy: e, variant = "true" }: Props) {
           <b style={{ color }}>{v >= 0 ? "+" : ""}{formatCurrency(v)}</b>
         </div>
       )}
+      {!isDisciplined && e.breakevens > 0 && (
+        <div className="text-xs" style={{ marginTop: 6, color: "var(--text2)" }}>
+          BE <b style={{ color: "var(--text)" }}>{Math.round((e.breakevens / e.trades) * 100)}%</b> ({e.breakevens} of {e.trades}) — capital used without return
+        </div>
+      )}
       {isDisciplined && tax > 0 && (
         <div className="text-xs" style={{ marginTop: 8, color: "var(--text2)" }}>
           Discipline gap: <b style={{ color: "var(--green)" }}>+{formatCurrency(tax)}/trade</b> left on the table by letting losses run past 70% of planned risk.
@@ -66,12 +71,18 @@ export default function EdgeCard({ expectancy: e, variant = "true" }: Props) {
         </div>
       )}
       {!isDisciplined && e.last_trade_delta !== null && (
-        <div className="text-xs" style={{
-          marginTop: 8,
-          color: e.last_trade_delta > 0 ? "var(--green)" : e.last_trade_delta < 0 ? "var(--red)" : "var(--text2)",
-        }}>
-          {e.last_trade_delta > 0 ? "↗" : e.last_trade_delta < 0 ? "↘" : "→"} Last trade: {e.last_trade_delta >= 0 ? "+" : ""}{formatCurrency(e.last_trade_delta)} to your edge
-        </div>
+        e.last_trade_status === "breakeven" ? (
+          <div className="text-xs" style={{ marginTop: 8, color: "var(--text2)" }}>
+            ↘ Breakeven trade — edge diluted by {formatCurrency(Math.abs(e.last_trade_delta))} (capital used, no return)
+          </div>
+        ) : (
+          <div className="text-xs" style={{
+            marginTop: 8,
+            color: e.last_trade_delta > 0 ? "var(--green)" : e.last_trade_delta < 0 ? "var(--red)" : "var(--text2)",
+          }}>
+            {e.last_trade_delta > 0 ? "↗" : e.last_trade_delta < 0 ? "↘" : "→"} Last trade: {e.last_trade_delta >= 0 ? "+" : ""}{formatCurrency(e.last_trade_delta)} to your edge
+          </div>
+        )
       )}
     </div>
   );

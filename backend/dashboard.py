@@ -80,6 +80,10 @@ def _compute_expectancy(closed_trades: list[dict]) -> dict:
             "trades": int,         # total trades counted (wins+losses+breakevens)
             "last_trade_delta": float | None,  # how the most-recent closed trade changed EV
                                                 # (EV_now − EV_before_last). null if <2 trades
+            "last_trade_status": "win" | "loss" | "breakeven" | None,
+                                                # status of the most-recent closed trade.
+                                                # Lets the UI distinguish a BE-dilution delta
+                                                # from a true win/loss delta.
         }
     """
     relevant = [t for t in closed_trades if t.get("pnl") is not None]
@@ -88,7 +92,7 @@ def _compute_expectancy(closed_trades: list[dict]) -> dict:
             "value": 0.0, "win_rate": 0.0, "loss_rate": 0.0,
             "avg_win": 0.0, "avg_loss": 0.0,
             "wins": 0, "losses": 0, "breakevens": 0, "trades": 0,
-            "last_trade_delta": None,
+            "last_trade_delta": None, "last_trade_status": None,
         }
 
     def _ev(rows: list[dict]) -> float:
@@ -119,6 +123,7 @@ def _compute_expectancy(closed_trades: list[dict]) -> dict:
     ev_now = win_rate * avg_win - loss_rate * avg_loss
     ev_before = _ev(sorted_rel[:-1]) if n >= 2 else None
     last_delta = round(ev_now - ev_before, 2) if ev_before is not None else None
+    last_status = sorted_rel[-1].get("status") if sorted_rel else None
 
     return {
         "value": round(ev_now, 2),
@@ -129,6 +134,7 @@ def _compute_expectancy(closed_trades: list[dict]) -> dict:
         "wins": len(wins), "losses": len(losses), "breakevens": len(breakevens),
         "trades": n,
         "last_trade_delta": last_delta,
+        "last_trade_status": last_status,
     }
 
 
@@ -175,7 +181,8 @@ def _compute_disciplined_expectancy(closed_trades: list[dict]) -> dict:
             "value": 0.0, "win_rate": 0.0, "loss_rate": 0.0,
             "avg_win": 0.0, "avg_loss": 0.0,
             "wins": 0, "losses": 0, "breakevens": 0, "trades": 0,
-            "last_trade_delta": None, "discipline_tax": 0.0,
+            "last_trade_delta": None, "last_trade_status": None,
+            "discipline_tax": 0.0,
         }
 
     def _weighted_loss_contrib_per_trade(rows: list[dict]) -> float:
@@ -220,6 +227,7 @@ def _compute_disciplined_expectancy(closed_trades: list[dict]) -> dict:
     ev_now = _ev_disciplined(sorted_rel)
     ev_before = _ev_disciplined(sorted_rel[:-1]) if n >= 2 else None
     last_delta = round(ev_now - ev_before, 2) if ev_before is not None else None
+    last_status = sorted_rel[-1].get("status") if sorted_rel else None
 
     # Tax = how much better the disciplined edge is vs the true edge
     true_avg_loss = abs(sum(r["pnl"] for r in losses) / len(losses)) if losses else 0.0
@@ -235,6 +243,7 @@ def _compute_disciplined_expectancy(closed_trades: list[dict]) -> dict:
         "wins": len(wins), "losses": len(losses), "breakevens": len(breakevens),
         "trades": n,
         "last_trade_delta": last_delta,
+        "last_trade_status": last_status,
         "discipline_tax": discipline_tax,
     }
 

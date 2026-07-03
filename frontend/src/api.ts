@@ -48,6 +48,7 @@ export interface Expectancy {
   breakevens: number;
   trades: number;
   last_trade_delta: number | null;
+  last_trade_status: 'win' | 'loss' | 'breakeven' | null;
 }
 
 export interface DisciplinedExpectancy extends Expectancy {
