@@ -9,6 +9,7 @@ from app.api.audit import router as audit_router
 from app.api.errors import NotConfiguredError
 from app.api.flows import router as flows_router
 from app.api.health import router as health_router
+from app.api.ingest import router as ingest_router
 from app.api.journal import router as journal_router
 from app.api.metrics import router as metrics_router, tearsheet_router
 from app.api.nav import router as nav_router
@@ -42,6 +43,7 @@ app.include_router(tearsheet_router)
 app.include_router(attribution_router)
 app.include_router(audit_router)
 app.include_router(allocator_router)
+app.include_router(ingest_router)
 
 
 @app.exception_handler(NotConfiguredError)

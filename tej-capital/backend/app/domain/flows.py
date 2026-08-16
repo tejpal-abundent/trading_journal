@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Index, Numeric, String, Text, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,7 +12,12 @@ from app.db import Base
 class CashFlow(Base):
     __tablename__ = "tej_cash_flows"
     __table_args__ = (
-        UniqueConstraint("account_id", "external_id", name="ux_tej_flows_external"),
+        # Partial: see Trade.__table_args__ for the correction-carries-
+        # external_id-forward rationale — migration 0002.
+        Index(
+            "ux_tej_flows_external", "account_id", "external_id",
+            unique=True, postgresql_where=text("superseded_by IS NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
