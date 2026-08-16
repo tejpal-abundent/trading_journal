@@ -1,0 +1,15 @@
+{
+  email admin@tej.capital
+}
+
+tej.local {
+  handle_path /api/* {
+    reverse_proxy api:8000
+  }
+  handle_path /tej-capital/* {
+    reverse_proxy web:80
+  }
+  basicauth {
+    tej JDJhJDEwJHRlbXBsYXRlLXJlcGxhY2VkLXdpdGgtcmVhbC1oYXNo
+  }
+}
