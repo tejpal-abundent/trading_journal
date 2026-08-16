@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "postbuild": "(cd ../tej-capital/frontend && npm ci && npm run build) && rm -rf dist/tej-capital && cp -r ../tej-capital/frontend/dist dist/tej-capital",
+    "postbuild": "(cd ../tej-capital/frontend && npm ci && VITE_TEJ_CAPITAL_API_URL=${VITE_TEJ_CAPITAL_API_URL:-https://tej-capital-api.onrender.com/api} npm run build) && rm -rf dist/tej-capital && cp -r ../tej-capital/frontend/dist dist/tej-capital",
     "preview": "vite preview"
   },
   "dependencies": {
