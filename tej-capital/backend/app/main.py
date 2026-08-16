@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.accounts import router as accounts_router
+from app.api.attribution import router as attribution_router
 from app.api.errors import NotConfiguredError
 from app.api.flows import router as flows_router
 from app.api.health import router as health_router
@@ -36,6 +37,7 @@ app.include_router(trades_router)
 app.include_router(journal_router)
 app.include_router(metrics_router)
 app.include_router(tearsheet_router)
+app.include_router(attribution_router)
 
 
 @app.exception_handler(NotConfiguredError)
