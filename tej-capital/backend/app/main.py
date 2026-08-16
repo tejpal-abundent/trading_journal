@@ -6,6 +6,7 @@ from app.api.accounts import router as accounts_router
 from app.api.errors import NotConfiguredError
 from app.api.flows import router as flows_router
 from app.api.health import router as health_router
+from app.api.journal import router as journal_router
 from app.api.nav import router as nav_router
 from app.api.playbook import router as playbook_router
 from app.api.settings import router as settings_router
@@ -29,6 +30,7 @@ app.include_router(playbook_router)
 app.include_router(nav_router)
 app.include_router(flows_router)
 app.include_router(trades_router)
+app.include_router(journal_router)
 
 
 @app.exception_handler(NotConfiguredError)
