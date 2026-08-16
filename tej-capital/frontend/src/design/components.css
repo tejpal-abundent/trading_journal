@@ -117,6 +117,282 @@
   color: var(--loss);
 }
 
+.field__input--textarea {
+  height: auto;
+  min-height: 88px;
+  padding: var(--space-2) var(--space-3);
+  resize: vertical;
+  font-family: var(--font-sans);
+  line-height: var(--line-body);
+}
+
+select.field__input {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-3) 50%),
+    linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
+  background-position: calc(100% - 18px) center, calc(100% - 13px) center;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: var(--space-6);
+}
+
+/* ---------- SegmentedControl ---------- */
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--ground-3);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  background: var(--ground-2);
+  gap: 2px;
+}
+
+.segmented__item {
+  border: none;
+  background: transparent;
+  color: var(--ink-3);
+  font-family: var(--font-sans);
+  font-size: var(--size-body);
+  font-weight: 500;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--duration-1) var(--ease-out), color var(--duration-1) var(--ease-out);
+}
+
+.segmented__item--active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* ---------- Today: form + confirmation + banners ---------- */
+
+.today-layout {
+  display: flex;
+  gap: var(--space-7);
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.today-layout__form {
+  flex: 1 1 380px;
+  max-width: 460px;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.today-layout__ledger {
+  flex: 1 1 320px;
+  min-width: 280px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.form-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.banner {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--ground-3);
+  padding: var(--space-4) var(--space-5);
+  font-size: var(--size-body);
+  line-height: var(--line-body);
+}
+
+.banner--caution {
+  background: var(--caution-soft);
+  color: var(--ink-1);
+  border-color: transparent;
+}
+
+.banner--correction {
+  background: var(--caution-soft);
+  color: var(--ink-1);
+  border-color: transparent;
+}
+
+.banner--info {
+  background: var(--ground-2);
+  color: var(--ink-2);
+}
+
+.confirmation-card {
+  background: var(--gain-soft);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.confirmation-card__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-4);
+}
+
+.confirmation-card__label {
+  font-size: var(--size-caption);
+  color: var(--ink-3);
+}
+
+.confirmation-card__value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--size-body);
+  color: var(--ink-1);
+}
+
+.confirmation-card__value--gain {
+  color: var(--gain);
+}
+
+.confirmation-card__value--loss {
+  color: var(--loss);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--size-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.chip--breach {
+  background: var(--loss-soft);
+  color: var(--loss);
+}
+
+.chip--ok {
+  background: var(--gain-soft);
+  color: var(--gain);
+}
+
+/* ---------- Streak cards (Ledger) ---------- */
+
+.streak-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.streak-card {
+  background: var(--ground-2);
+  border: 1px solid var(--ground-3);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+}
+
+.streak-card--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.streak-card--primary .streak-card__label,
+.streak-card--primary .streak-card__value {
+  color: var(--on-accent);
+}
+
+.streak-card__label {
+  font-size: var(--size-caption);
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.streak-card__value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--size-h1);
+  color: var(--ink-1);
+  margin-top: var(--space-2);
+}
+
+.ledger-footer {
+  margin-top: var(--space-6);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--size-caption);
+  color: var(--ink-3);
+}
+
+.year-switcher {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Trade Entry: enrichment queue ---------- */
+
+.enrichment-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--caution-soft);
+  color: var(--ink-1);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--size-body);
+  cursor: pointer;
+  margin-bottom: var(--space-5);
+  transition: background var(--duration-1) var(--ease-out);
+}
+
+.enrichment-link:hover {
+  background: var(--caution);
+  color: var(--on-accent);
+}
+
+.enrichment-queue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+}
+
+.enrichment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  background: var(--ground-2);
+  border: 1px solid var(--ground-3);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+
+.enrichment-row--active {
+  border-color: var(--accent);
+}
+
+.enrichment-row__meta {
+  font-size: var(--size-caption);
+  color: var(--ink-3);
+}
+
+.trade-entry-form {
+  max-width: 640px;
+}
+
 /* ---------- MetricCard ---------- */
 
 .metric {
@@ -340,15 +616,18 @@
 /* ---------- YearLedger ---------- */
 
 .year-ledger {
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
   gap: var(--space-2);
   position: relative;
+  max-width: 100%;
 }
 
 .year-ledger__grid {
   display: flex;
   gap: 2px;
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
 }
 
 .year-ledger__week {
