@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: timescale/timescaledb-ha:pg16
+    environment:
+      POSTGRES_USER: tej
+      POSTGRES_PASSWORD: tej
+      POSTGRES_DB: tej_capital
+    volumes:
+      - tej_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+
+  api:
+    build: ./backend
+    depends_on: [postgres]
+    environment:
+      TEJ_DATABASE_URL: postgresql+asyncpg://tej:tej@postgres:5432/tej_capital
+      TEJ_TELEGRAM_BOT_TOKEN: ${TEJ_TELEGRAM_BOT_TOKEN:-}
+      TEJ_TELEGRAM_CHAT_ID: ${TEJ_TELEGRAM_CHAT_ID:-}
+      TEJ_QDRANT_URL: ${TEJ_QDRANT_URL:-}
+      TEJ_LLM_API_KEY: ${TEJ_LLM_API_KEY:-}
+      TEJ_ALLOCATOR_LINK_SECRET: ${TEJ_ALLOCATOR_LINK_SECRET:-change-me}
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
+
+  web:
+    build: ./frontend
+    depends_on: [api]
+    ports:
+      - "5174:80"
+
+  caddy:
+    image: caddy:2
+    depends_on: [api, web]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+
+  # Enable if you have a Temporal server:
+  # worker:
+  #   build: ./backend
+  #   depends_on: [postgres]
+  #   environment:
+  #     TEJ_DATABASE_URL: postgresql+asyncpg://tej:tej@postgres:5432/tej_capital
+  #     TEJ_TEMPORAL_HOST: temporal:7233
+  #   command: python -m app.workflows.worker
+
+volumes:
+  tej_pgdata:
+  caddy_data:
+  caddy_config:

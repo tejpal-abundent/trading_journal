@@ -21,6 +21,16 @@ function Shell() {
             <NavLink to="/rules">Rules</NavLink>
             <Link to="/trade/new" className="btn btn-sm btn-primary">+ New Trade</Link>
             <Link to="/trade/new?mode=retro" className="btn btn-sm btn-ghost">Log retro</Link>
+            <a
+              href="/tej-capital/"
+              onClick={(e) => {
+                e.preventDefault();
+                window.open("/tej-capital/", "_blank", "noopener,noreferrer");
+              }}
+              style={{ cursor: "pointer" }}
+            >
+              TEJ Capital ↗
+            </a>
           </div>
         </nav>
         <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
