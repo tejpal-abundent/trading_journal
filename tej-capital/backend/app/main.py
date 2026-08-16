@@ -8,6 +8,7 @@ from app.api.allocator import router as allocator_router
 from app.api.attribution import router as attribution_router
 from app.api.audit import router as audit_router
 from app.api.errors import NotConfiguredError
+from app.api.export import router as export_router
 from app.api.flows import router as flows_router
 from app.api.health import router as health_router
 from app.api.ingest import router as ingest_router
@@ -45,6 +46,7 @@ app.include_router(attribution_router)
 app.include_router(audit_router)
 app.include_router(allocator_router)
 app.include_router(ingest_router)
+app.include_router(export_router)
 app.include_router(ai_router)
 
 
