@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/query";
 import { Layout } from "./components/Layout";
-// Pages — placeholders in this task; real content in Tasks 28/29
 import Today from "./pages/Today";
 import TradeEntry from "./pages/TradeEntry";
 import Ledger from "./pages/Ledger";

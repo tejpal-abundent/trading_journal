@@ -23,7 +23,7 @@ async def current_drawdown_pct(db: AsyncSession) -> float:
     """Current drawdown as a signed fraction (e.g. -0.08 for -8%).
 
     Negative means "in drawdown". Returns 0.0 when there is no snapshot yet,
-    or when the snapshot has no `current_drawdown` key.
+    or when the snapshot has no `current_drawdown` value.
     """
     row = (await db.execute(
         select(MetricSnapshot)
@@ -33,4 +33,9 @@ async def current_drawdown_pct(db: AsyncSession) -> float:
     )).scalar_one_or_none()
     if not row:
         return 0.0
-    return float(row.metrics.get("current_drawdown", 0.0) or 0.0)
+    # `metrics` is the full tearsheet produced by compute_tearsheet — current
+    # drawdown lives at metrics["risk"]["current_drawdown"]["value"], not at
+    # the top level.
+    risk = row.metrics.get("risk", {}) or {}
+    current_drawdown = risk.get("current_drawdown", {}) or {}
+    return float(current_drawdown.get("value") or 0.0)
