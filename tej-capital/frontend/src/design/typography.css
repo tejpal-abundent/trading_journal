@@ -1,0 +1,65 @@
+/*
+ * Typeface loading: Inter (sans), Source Serif 4 (serif), JetBrains Mono (mono)
+ * are loaded via <link> tags in index.html (Google Fonts). This file only
+ * defines type-scale utility rules built on the tokens from tokens.css —
+ * it never declares @font-face or ad-hoc sizes/colors.
+ */
+
+h1,
+.h1 {
+  font-family: var(--font-serif);
+  font-size: var(--size-h1);
+  line-height: var(--line-tight);
+  color: var(--ink-1);
+  font-weight: 600;
+}
+
+h2,
+.h2 {
+  font-family: var(--font-sans);
+  font-size: var(--size-h2);
+  line-height: var(--line-tight);
+  color: var(--ink-1);
+  font-weight: 600;
+}
+
+h3,
+.h3 {
+  font-family: var(--font-sans);
+  font-size: var(--size-h3);
+  line-height: var(--line-tight);
+  color: var(--ink-1);
+  font-weight: 600;
+}
+
+.display {
+  font-family: var(--font-serif);
+  font-size: var(--size-display);
+  line-height: var(--line-tight);
+  color: var(--ink-1);
+  font-weight: 600;
+}
+
+p {
+  color: var(--ink-2);
+  font-size: var(--size-body);
+  line-height: var(--line-body);
+}
+
+small,
+.caption {
+  font-size: var(--size-caption);
+  color: var(--ink-3);
+}
+
+.micro {
+  font-size: var(--size-micro);
+  color: var(--ink-3);
+}
+
+/* Numbers in tables and metric cards are always mono with tabular figures. */
+.mono,
+.tabular-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
