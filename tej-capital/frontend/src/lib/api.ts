@@ -1,4 +1,4 @@
-const BASE = "/api";
+const BASE = (import.meta.env.VITE_TEJ_CAPITAL_API_URL as string | undefined)?.replace(/\/$/, "") || "/api";
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const r = await fetch(`${BASE}${path}`, {

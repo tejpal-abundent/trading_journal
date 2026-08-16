@@ -23,9 +23,18 @@ from app.api.trades import router as trades_router
 
 app = FastAPI(title="TEJ Capital API", version="0.1.0")
 
+import os
+
+_default_origins = [
+    "http://localhost:5174",
+    "http://localhost:9000",
+    "https://tradingjournal.pages.dev",
+]
+_extra = [o.strip() for o in os.environ.get("TEJ_CORS_ORIGINS", "").split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5174"],
+    allow_origins=_default_origins + _extra,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

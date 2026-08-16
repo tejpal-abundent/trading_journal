@@ -1,5 +1,7 @@
 from functools import lru_cache
 from typing import Literal
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,6 +23,19 @@ class Settings(BaseSettings):
     darwinex_api_key: str | None = None
 
     allocator_link_secret: str = "change-me-in-prod"
+
+    @field_validator("database_url")
+    @classmethod
+    def _ensure_async_driver(cls, v: str) -> str:
+        """Managed Postgres providers (Render, Heroku, Neon, Supabase) hand back
+        `postgres://` or `postgresql://` connection strings. SQLAlchemy's async
+        engine needs the driver name spelled out — rewrite to asyncpg when
+        neither driver is specified."""
+        if v.startswith("postgres://"):
+            v = "postgresql://" + v[len("postgres://") :]
+        if v.startswith("postgresql://"):
+            v = "postgresql+asyncpg://" + v[len("postgresql://") :]
+        return v
 
 
 @lru_cache
