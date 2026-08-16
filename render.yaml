@@ -1,24 +1,20 @@
-services:
-  # ─── Existing trading-journal API (unchanged) ─────────────
-  - type: web
-    name: trading-journal-api
-    runtime: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
-    plan: free
-    envVars:
-      - key: TURSO_DB_URL
-        sync: false
-      - key: TURSO_AUTH_TOKEN
-        sync: false
+# Render Blueprint for the TEJ Capital subsystem.
+#
+# The existing `trading_journal-1` API service is intentionally NOT declared
+# here — it was created outside Blueprint and should stay that way. This
+# Blueprint only manages the new tej-capital stack (API + Postgres).
+#
+# To provision: Render Dashboard → Blueprints → New Blueprint Instance →
+# pick the tejpal-abundent/trading_journal repo → main branch.
 
-  # ─── NEW: TEJ Capital API (FastAPI + Postgres) ────────────
+services:
   - type: web
     name: tej-capital-api
     runtime: docker
     dockerfilePath: ./tej-capital/backend/Dockerfile
     dockerContext: ./tej-capital/backend
     plan: free
+    region: oregon
     healthCheckPath: /api/health
     envVars:
       - key: TEJ_DATABASE_URL
@@ -53,3 +49,4 @@ databases:
     databaseName: tej_capital
     user: tej
     postgresMajorVersion: 16
+    region: oregon
