@@ -215,3 +215,117 @@ def top_n_drawdowns(returns: pd.Series, n: int = 5) -> list[dict]:
         })
     drawdowns.sort(key=lambda d: d["depth"])
     return drawdowns[:n]
+
+
+# --- Risk-adjusted block ---
+
+def sharpe(returns: pd.Series, rf: float = 0.0, trading_days_per_year: int = 252) -> float | None:
+    if _empty(returns) or len(returns) < 2:
+        return None
+    excess = returns - rf / trading_days_per_year
+    std = excess.std(ddof=1)
+    if std == 0:
+        return 0.0
+    return float(excess.mean() / std * np.sqrt(trading_days_per_year))
+
+
+def sortino(returns: pd.Series, mar: float = 0.0, trading_days_per_year: int = 252) -> float | None:
+    if _empty(returns) or len(returns) < 2:
+        return None
+    excess = returns - mar / trading_days_per_year
+    dd = downside_deviation(returns, mar=mar, trading_days_per_year=trading_days_per_year)
+    if dd is None or dd == 0:
+        return None
+    return float(excess.mean() * trading_days_per_year / dd)
+
+
+def calmar(returns: pd.Series, trading_days_per_year: int = 252) -> float | None:
+    if _empty(returns):
+        return None
+    mdd = max_drawdown(returns)
+    if mdd is None or mdd == 0:
+        return None
+    c = cagr(returns, trading_days_per_year)
+    if c is None:
+        return None
+    return float(c / abs(mdd))
+
+
+def sterling(returns: pd.Series, trading_days_per_year: int = 252) -> float | None:
+    """Annualised return / (avg of top-3 drawdowns - 10%)."""
+    if _empty(returns):
+        return None
+    dds = [d["depth"] for d in top_n_drawdowns(returns, n=3)]
+    if not dds:
+        return None
+    avg_dd = np.mean(dds)
+    denom = abs(avg_dd) - 0.10
+    if denom <= 0:
+        return None
+    ar = annualised_return(returns, trading_days_per_year)
+    return float(ar / denom) if ar is not None else None
+
+
+def burke(returns: pd.Series, trading_days_per_year: int = 252) -> float | None:
+    """Annualised return / sqrt(sum of squared drawdowns)."""
+    if _empty(returns):
+        return None
+    dds = [d["depth"] for d in top_n_drawdowns(returns, n=10)]
+    if not dds:
+        return None
+    denom = np.sqrt(sum(d ** 2 for d in dds))
+    if denom == 0:
+        return None
+    ar = annualised_return(returns, trading_days_per_year)
+    return float(ar / denom) if ar is not None else None
+
+
+def omega(returns: pd.Series, threshold: float = 0.0) -> float | None:
+    if _empty(returns):
+        return None
+    gains = (returns - threshold).clip(lower=0).sum()
+    losses = -(returns - threshold).clip(upper=0).sum()
+    if losses == 0:
+        return None
+    return float(gains / losses)
+
+
+def gain_to_pain(returns: pd.Series) -> float | None:
+    if _empty(returns):
+        return None
+    gains = returns.sum()
+    pain = -returns[returns < 0].sum()
+    if pain == 0:
+        return None
+    return float(gains / pain)
+
+
+def tail_ratio(returns: pd.Series) -> float | None:
+    if _empty(returns):
+        return None
+    right = np.percentile(returns, 95)
+    left = np.percentile(returns, 5)
+    if left == 0:
+        return None
+    return float(right / abs(left))
+
+
+def ulcer_performance_index(returns: pd.Series, rf: float = 0.0,
+                            trading_days_per_year: int = 252) -> float | None:
+    if _empty(returns):
+        return None
+    ar = annualised_return(returns, trading_days_per_year)
+    u = ulcer_index(returns)
+    if u is None or u == 0 or ar is None:
+        return None
+    return float((ar - rf) / u)
+
+
+def recovery_factor(returns: pd.Series) -> float | None:
+    if _empty(returns):
+        return None
+    cum = cumulative_twr(returns)
+    mdd = max_drawdown(returns)
+    if cum is None or mdd is None or mdd == 0:
+        return None
+    return float(cum / abs(mdd))
