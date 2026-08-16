@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "postbuild": "(cd ../tej-capital/frontend && npm ci && npm run build) && rm -rf dist/tej-capital && cp -r ../tej-capital/frontend/dist dist/tej-capital",
     "preview": "vite preview"
   },
   "dependencies": {

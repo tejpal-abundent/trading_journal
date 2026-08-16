@@ -28,6 +28,7 @@ import os
 _default_origins = [
     "http://localhost:5174",
     "http://localhost:9000",
+    "https://tradingjournal.tejpalkumawat1182.workers.dev",
     "https://tradingjournal.pages.dev",
 ]
 _extra = [o.strip() for o in os.environ.get("TEJ_CORS_ORIGINS", "").split(",") if o.strip()]

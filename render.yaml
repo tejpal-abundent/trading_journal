@@ -28,7 +28,7 @@ services:
       - key: TEJ_ENV
         value: prod
       - key: TEJ_CORS_ORIGINS
-        value: https://tradingjournal.pages.dev
+        value: https://tradingjournal.tejpalkumawat1182.workers.dev,https://tradingjournal.pages.dev
       # Integration credentials — set in Render dashboard, not in git.
       - key: TEJ_TELEGRAM_BOT_TOKEN
         sync: false
