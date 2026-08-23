@@ -10,7 +10,9 @@ router = APIRouter(prefix="/api/attribution", tags=["attribution"])
 @router.get("")
 async def get_attribution(
     db: SessionDep,
-    by: Literal["setup", "asset", "session", "htf", "dow"] = Query(...),
+    by: Literal["setup", "asset", "session", "htf", "dow", "timeframe"] = Query(
+        ..., description="Grouping dimension: setup, asset, session, htf, dow, or timeframe."
+    ),
 ):
     """Returns list of grouped stats with verdict tags."""
     _returns, trades_df, _nav_count = await _load_series(db, "composite", None)

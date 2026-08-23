@@ -2,7 +2,18 @@ import uuid
 from datetime import date
 from decimal import Decimal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+# Smaller timeframes have worse signal-to-noise, so the default halves the
+# allowed per-trade risk on 1m/5m relative to 15m+. Used both as the
+# read-time fallback when tej_settings.risk_by_timeframe is NULL and as the
+# fallback threshold for any timeframe missing from a stored override map.
+DEFAULT_RISK_BY_TIMEFRAME: dict[str, Decimal] = {
+    "1m": Decimal("0.0025"), "5m": Decimal("0.0025"),
+    "15m": Decimal("0.005"), "30m": Decimal("0.005"),
+    "1h": Decimal("0.005"), "4h": Decimal("0.005"),
+    "1d": Decimal("0.005"), "1w": Decimal("0.005"),
+}
 
 
 class SettingsCreate(BaseModel):
@@ -18,6 +29,7 @@ class SettingsCreate(BaseModel):
     daily_target_pct: Decimal = Decimal("0.003")
     weekly_target_pct: Decimal = Decimal("0.015")
     monthly_target_pct: Decimal = Decimal("0.0614")
+    risk_by_timeframe: dict[str, Decimal] | None = None
 
 
 class SettingsUpdate(BaseModel):
@@ -33,6 +45,7 @@ class SettingsUpdate(BaseModel):
     daily_target_pct: Decimal | None = None
     weekly_target_pct: Decimal | None = None
     monthly_target_pct: Decimal | None = None
+    risk_by_timeframe: dict[str, Decimal] | None = None
 
 
 class SettingsRead(BaseModel):
@@ -49,7 +62,13 @@ class SettingsRead(BaseModel):
     daily_target_pct: Decimal
     weekly_target_pct: Decimal
     monthly_target_pct: Decimal
+    risk_by_timeframe: dict[str, Decimal]
     model_config = {"from_attributes": True}
+
+    @field_validator("risk_by_timeframe", mode="before")
+    @classmethod
+    def _default_risk_by_timeframe(cls, v):
+        return v if v is not None else DEFAULT_RISK_BY_TIMEFRAME
 
 
 class TargetCreate(BaseModel):

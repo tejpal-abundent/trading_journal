@@ -200,6 +200,18 @@ select.field__input {
   gap: var(--space-4);
 }
 
+.form-grid--tf-risk {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 720px) {
+  .form-grid--tf-risk {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 .banner {
   border-radius: var(--radius-lg);
   border: 1px solid var(--ground-3);

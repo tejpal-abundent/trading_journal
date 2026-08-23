@@ -25,10 +25,11 @@ _COLUMN_MAP = {
     "session": "session",
     "htf": "htf_aligned",
     "dow": "_dow",
+    "timeframe": "timeframe",
 }
 
 
-def grouped_stats(trades: pd.DataFrame, by: Literal["setup", "asset", "session", "htf", "dow"]) -> list[dict]:
+def grouped_stats(trades: pd.DataFrame, by: Literal["setup", "asset", "session", "htf", "dow", "timeframe"]) -> list[dict]:
     if by == "dow":
         trades = trades.copy()
         trades["_dow"] = pd.to_datetime(trades["closed_at"]).dt.day_name()

@@ -11,6 +11,7 @@ const GROUPINGS: { value: AttributionBy; label: string }[] = [
   { value: "session", label: "Session" },
   { value: "htf", label: "HTF" },
   { value: "dow", label: "Day of week" },
+  { value: "timeframe", label: "Timeframe" },
 ];
 
 export default function Attribution() {

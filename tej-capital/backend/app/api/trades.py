@@ -5,9 +5,13 @@ from decimal import Decimal
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import SessionDep
+from app.domain.nav import NavSnapshot
+from app.domain.settings import Settings
 from app.domain.trades import Trade
+from app.schemas.settings import DEFAULT_RISK_BY_TIMEFRAME
 from app.schemas.trades import TradeCreate, TradeRead
 from app.services.corrections import InvalidReason, apply_correction
 
@@ -18,8 +22,38 @@ router = APIRouter(prefix="/api/trades", tags=["trades"])
 ENRICHABLE_FIELDS = {
     "setup_id", "risk_amount", "execution_grade", "state_of_mind",
     "mae_r", "mfe_r", "rule_compliant", "breach_note",
-    "one_sentence_takeaway", "review",
+    "one_sentence_takeaway", "review", "timeframe",
 }
+
+
+async def _validate_tf_risk(db: AsyncSession, trade_data: dict, account_id: uuid.UUID) -> None:
+    """If timeframe AND risk_amount both present, ensure risk_amount / latest_equity
+    does not exceed the timeframe-specific limit. Skip validation if either is null."""
+    tf = trade_data.get("timeframe")
+    risk = trade_data.get("risk_amount")
+    if tf is None or risk is None:
+        return
+    # Fetch most recent non-superseded NAV for this account
+    latest = (await db.execute(
+        select(NavSnapshot)
+        .where(NavSnapshot.account_id == account_id, NavSnapshot.superseded_by.is_(None))
+        .order_by(NavSnapshot.as_of_date.desc()).limit(1)
+    )).scalar_one_or_none()
+    if latest is None:
+        return  # No equity to validate against; let trade through
+    settings = await db.get(Settings, 1)
+    risk_map = settings.risk_by_timeframe if settings and settings.risk_by_timeframe else DEFAULT_RISK_BY_TIMEFRAME
+    threshold = Decimal(str(risk_map.get(tf, "0.005")))
+    risk_pct = Decimal(risk) / Decimal(latest.closing_equity)
+    if risk_pct > threshold:
+        raise HTTPException(status_code=400, detail={
+            "error": "risk_exceeds_timeframe_limit",
+            "timeframe": tf,
+            "risk_pct": float(risk_pct),
+            "threshold": float(threshold),
+            "hint": f"Risk {float(risk_pct)*100:.3f}% exceeds {tf} limit of {float(threshold)*100:.3f}%. "
+                    f"Reduce position size or raise the limit in Settings → Risk by timeframe.",
+        })
 
 # Economic fields that WERE asserted at entry time; changing them requires
 # the supersede-and-log correction flow with a reason (R1/R2).
@@ -37,6 +71,7 @@ class TradeEnrich(BaseModel):
     breach_note: str | None = None
     one_sentence_takeaway: str | None = None
     review: str | None = None
+    timeframe: str | None = None
 
 
 class TradeCorrect(BaseModel):
@@ -62,7 +97,9 @@ async def _get_current(db: SessionDep, trade_id: uuid.UUID) -> Trade | None:
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_trade(payload: TradeCreate, db: SessionDep):
-    t = Trade(id=uuid.uuid4(), **payload.model_dump())
+    data = payload.model_dump()
+    await _validate_tf_risk(db, data, payload.account_id)
+    t = Trade(id=uuid.uuid4(), **data)
     db.add(t)
     await db.commit()
     await db.refresh(t)
@@ -105,6 +142,8 @@ async def enrich_trade(trade_id: uuid.UUID, payload: TradeEnrich, db: SessionDep
     for k, v in updates.items():
         if k in ENRICHABLE_FIELDS:
             setattr(t, k, v)
+
+    await _validate_tf_risk(db, {"timeframe": t.timeframe, "risk_amount": t.risk_amount}, t.account_id)
 
     await db.commit()
     await db.refresh(t)

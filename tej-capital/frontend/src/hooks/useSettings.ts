@@ -15,6 +15,7 @@ export type Settings = {
   daily_target_pct: string;
   weekly_target_pct: string;
   monthly_target_pct: string;
+  risk_by_timeframe: Record<string, string>;
 };
 
 export function useSettings() {

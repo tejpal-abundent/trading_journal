@@ -5,15 +5,20 @@ import {
   useEnrichTrade,
   useEnrichmentQueue,
   usePlaybookSetups,
+  riskLimitHintFrom,
   SESSION_OPTIONS,
   EXEC_GRADE_OPTIONS,
   MIND_STATE_OPTIONS,
+  TIMEFRAME_OPTIONS,
   type Direction,
   type Session,
   type ExecGrade,
   type MindState,
+  type Timeframe,
   type Trade,
 } from "../hooks/useTrades";
+import { useNav } from "../hooks/useNav";
+import { useSettings } from "../hooks/useSettings";
 import { EmptyState } from "../components/EmptyState";
 import { SectionHeader } from "../components/SectionHeader";
 import { SegmentedControl } from "../components/SegmentedControl";
@@ -36,6 +41,19 @@ function toISOOrUndefined(local: string): string | undefined {
   return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
 }
 
+/** "Limit for 1m is 0.25% ($37.50 at current equity)" — null when either the
+ * threshold or the account's latest equity isn't known yet. */
+function tfRiskCaption(
+  settings: { risk_by_timeframe: Record<string, string> } | undefined,
+  tf: Timeframe,
+  latestEquity: number | null,
+): string | null {
+  const threshold = settings ? Number(settings.risk_by_timeframe[tf]) : NaN;
+  if (!Number.isFinite(threshold) || latestEquity == null) return null;
+  const dollarLimit = threshold * latestEquity;
+  return `Limit for ${tf} is ${(threshold * 100).toFixed(2)}% ($${dollarLimit.toFixed(2)} at current equity)`;
+}
+
 export default function TradeEntry() {
   const { data: accounts, isLoading: accountsLoading } = useAccounts();
   const { data: setups } = usePlaybookSetups();
@@ -44,6 +62,10 @@ export default function TradeEntry() {
   const [accountId, setAccountId] = useState<string>();
   const activeAccountId = accountId ?? accounts?.[0]?.id;
 
+  const { data: navMarks } = useNav(activeAccountId);
+  const { data: settings } = useSettings();
+  const latestEquity = navMarks && navMarks.length > 0 ? Number(navMarks[navMarks.length - 1].closing_equity) : null;
+
   const [tab, setTab] = useState<Tab>("before");
   const [showQueue, setShowQueue] = useState(false);
 
@@ -51,6 +73,7 @@ export default function TradeEntry() {
   const [instrument, setInstrument] = useState("");
   const [direction, setDirection] = useState<Direction>("long");
   const [setupId, setSetupId] = useState("");
+  const [timeframe, setTimeframe] = useState<Timeframe>("1h");
   const [entryPrice, setEntryPrice] = useState("");
   const [stop, setStop] = useState("");
   const [target, setTarget] = useState("");
@@ -77,6 +100,7 @@ export default function TradeEntry() {
 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [riskFieldError, setRiskFieldError] = useState<string | null>(null);
 
   const createTrade = useCreateTrade();
 
@@ -97,6 +121,7 @@ export default function TradeEntry() {
     setInstrument("");
     setDirection("long");
     setSetupId("");
+    setTimeframe("1h");
     setEntryPrice("");
     setStop("");
     setTarget("");
@@ -124,6 +149,7 @@ export default function TradeEntry() {
     e.preventDefault();
     setSubmitError(null);
     setStatusMessage(null);
+    setRiskFieldError(null);
     if (!activeAccountId) return;
 
     const opened = toISOOrUndefined(openedAt);
@@ -138,6 +164,7 @@ export default function TradeEntry() {
         instrument: instrument.trim().toUpperCase(),
         direction,
         setup_id: setupId || null,
+        timeframe,
         entry_price: entryPrice,
         initial_stop: stop || null,
         target_price: target || null,
@@ -166,7 +193,12 @@ export default function TradeEntry() {
       );
       resetForm();
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Could not save the trade. Try again.");
+      const riskHint = riskLimitHintFrom(err);
+      if (riskHint) {
+        setRiskFieldError(riskHint);
+      } else {
+        setSubmitError(err instanceof Error ? err.message : "Could not save the trade. Try again.");
+      }
     }
   }
 
@@ -256,6 +288,19 @@ export default function TradeEntry() {
                 ))}
             </SelectField>
 
+            <SelectField
+              label="Timeframe"
+              name="timeframe"
+              value={timeframe}
+              onChange={(e) => setTimeframe(e.target.value as Timeframe)}
+            >
+              {TIMEFRAME_OPTIONS.map((tf) => (
+                <option key={tf} value={tf}>
+                  {tf}
+                </option>
+              ))}
+            </SelectField>
+
             <div className="form-row">
               <TextField
                 label="Entry price"
@@ -310,9 +355,14 @@ export default function TradeEntry() {
               onChange={(e) => {
                 setRiskAmount(e.target.value);
                 setRiskTouched(true);
+                setRiskFieldError(null);
               }}
+              error={riskFieldError ?? undefined}
               helperText="Auto-suggested from stop distance x position size — editable."
             />
+            {!riskFieldError && (timeframe === "1m" || timeframe === "5m") && tfRiskCaption(settings, timeframe, latestEquity) && (
+              <p className="field__helper">{tfRiskCaption(settings, timeframe, latestEquity)}</p>
+            )}
 
             <div className="form-row">
               <SelectField

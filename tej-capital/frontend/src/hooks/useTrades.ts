@@ -5,6 +5,9 @@ export type Direction = "long" | "short";
 export type Session = "asia" | "london" | "london_ny" | "new_york" | "late_ny";
 export type ExecGrade = "A" | "B" | "C" | "D";
 export type MindState = "calm" | "rushed" | "frustrated" | "overconfident" | "tilted";
+export type Timeframe = "1m" | "5m" | "15m" | "30m" | "1h" | "4h" | "1d" | "1w";
+
+export const TIMEFRAME_OPTIONS: Timeframe[] = ["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"];
 
 export const SESSION_OPTIONS: { value: Session; label: string }[] = [
   { value: "asia", label: "Asia" },
@@ -41,6 +44,7 @@ export type Trade = {
   costs: string;
   session: Session | null;
   htf_aligned: boolean | null;
+  timeframe: Timeframe | null;
   thesis: string | null;
   review: string | null;
   execution_grade: ExecGrade | null;
@@ -75,6 +79,7 @@ export type TradeCreatePayload = {
   costs?: string;
   session?: Session | null;
   htf_aligned?: boolean | null;
+  timeframe?: Timeframe | null;
   thesis?: string | null;
   review?: string | null;
   execution_grade?: ExecGrade | null;
@@ -99,7 +104,32 @@ export type TradeEnrichPayload = {
   breach_note?: string | null;
   one_sentence_takeaway?: string | null;
   review?: string | null;
+  timeframe?: Timeframe | null;
 };
+
+export type RiskExceedsTimeframeLimit = {
+  error: "risk_exceeds_timeframe_limit";
+  timeframe: string;
+  risk_pct: number;
+  threshold: number;
+  hint: string;
+};
+
+export function isRiskExceedsTimeframeLimit(body: unknown): body is { detail: RiskExceedsTimeframeLimit } {
+  const detail = (body as { detail?: unknown } | undefined)?.detail;
+  return !!detail && typeof detail === "object" && (detail as { error?: string }).error === "risk_exceeds_timeframe_limit";
+}
+
+/**
+ * Pulls the server's per-timeframe-risk hint out of an api.ts error, if
+ * that's what failed. Lets callers (Trade Entry's before-section, the
+ * enrichment form) surface it as a field-level error under the risk input
+ * instead of the generic submit-error banner used for everything else.
+ */
+export function riskLimitHintFrom(err: unknown): string | null {
+  const body = (err as { body?: unknown } | undefined)?.body;
+  return isRiskExceedsTimeframeLimit(body) ? body.detail.hint : null;
+}
 
 export function useTrades(accountId?: string, since?: string) {
   const params = new URLSearchParams();

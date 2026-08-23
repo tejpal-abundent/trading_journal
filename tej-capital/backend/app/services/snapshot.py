@@ -78,6 +78,7 @@ async def _load_series(db: AsyncSession, scope: str, account_id: uuid.UUID | Non
         "instrument": t.instrument,
         "session": t.session,
         "htf_aligned": t.htf_aligned,
+        "timeframe": t.timeframe,
         "r_multiple": t.r_multiple,
         "risk_amount": float(t.risk_amount) if t.risk_amount is not None else None,
         "gross_pnl": float(t.gross_pnl) if t.gross_pnl is not None else None,

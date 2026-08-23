@@ -179,6 +179,39 @@ async def test_attribution_by_dow():
 
 
 @pytest.mark.asyncio
+async def test_attribution_by_timeframe():
+    """Test that /api/attribution?by=timeframe groups trades by timeframe."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        aid = await _acct(ac)
+
+        for timeframe in ["1m", "15m", "1h"]:
+            for i in range(5):
+                await ac.post("/api/trades", json={
+                    "account_id": aid,
+                    "instrument": "XAUUSD",
+                    "direction": "long",
+                    "entry_price": "1.0000",
+                    "exit_price": "1.0050",
+                    "initial_stop": "0.9900",
+                    "position_size": "0.10",
+                    "risk_amount": "100.00",
+                    "gross_pnl": "30.00",
+                    "costs": "5.00",
+                    "timeframe": timeframe,
+                    "opened_at": "2026-08-16T10:00:00+00:00",
+                    "closed_at": "2026-08-16T15:00:00+00:00",
+                })
+
+        r = await ac.get("/api/attribution?by=timeframe")
+        assert r.status_code == 200
+        rows = r.json()
+        assert len(rows) >= 1
+        for row in rows:
+            assert "group" in row
+            assert "verdict" in row
+
+
+@pytest.mark.asyncio
 async def test_attribution_endpoint_returns_list():
     """Test that attribution endpoint returns a list (may be empty or not depending on DB state)."""
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:

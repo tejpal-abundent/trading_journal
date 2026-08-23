@@ -48,6 +48,13 @@ class Trade(Base):
         nullable=True,
     )
     htf_aligned: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    timeframe: Mapped[str | None] = mapped_column(
+        Enum(
+            "1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w",
+            name="tej_timeframe", create_type=False,
+        ),
+        nullable=True,
+    )
     thesis: Mapped[str | None] = mapped_column(Text, nullable=True)
     review: Mapped[str | None] = mapped_column(Text, nullable=True)
     execution_grade: Mapped[str | None] = mapped_column(

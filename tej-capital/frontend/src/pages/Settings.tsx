@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useSettings, useUpdateSettings, useTargets, useUpsertTarget, type Settings as SettingsT } from "../hooks/useSettings";
+import { TIMEFRAME_OPTIONS, type Timeframe } from "../hooks/useTrades";
 import { SectionHeader } from "../components/SectionHeader";
 import { Button } from "../components/Button";
 import { TextField } from "../components/TextField";
@@ -15,6 +16,7 @@ type FormState = {
   risk_free_rate: string; trading_days_per_year: string; minimum_acceptable_return: string;
   benchmark_sharpe: string; confidence_level: string; strategy_variants_tested: string;
   daily_target_pct: string; weekly_target_pct: string; monthly_target_pct: string;
+  risk_by_timeframe: Record<Timeframe, string>;
 };
 
 function toForm(s: SettingsT): FormState {
@@ -25,6 +27,7 @@ function toForm(s: SettingsT): FormState {
     confidence_level: s.confidence_level, strategy_variants_tested: String(s.strategy_variants_tested),
     daily_target_pct: s.daily_target_pct, weekly_target_pct: s.weekly_target_pct,
     monthly_target_pct: s.monthly_target_pct,
+    risk_by_timeframe: s.risk_by_timeframe as Record<Timeframe, string>,
   };
 }
 
@@ -41,6 +44,10 @@ export default function Settings() {
     setForm((f) => (f ? { ...f, [key]: value } : f));
   }
 
+  function setTfRisk(tf: Timeframe, value: string) {
+    setForm((f) => (f ? { ...f, risk_by_timeframe: { ...f.risk_by_timeframe, [tf]: value } } : f));
+  }
+
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!form) return;
@@ -52,6 +59,7 @@ export default function Settings() {
       confidence_level: form.confidence_level, strategy_variants_tested: Number(form.strategy_variants_tested),
       daily_target_pct: form.daily_target_pct, weekly_target_pct: form.weekly_target_pct,
       monthly_target_pct: form.monthly_target_pct,
+      risk_by_timeframe: form.risk_by_timeframe,
     });
   }
 
@@ -113,6 +121,26 @@ export default function Settings() {
           helperText={TARGET_HELPER}
         />
 
+        <SectionHeader title="Risk by timeframe" />
+        <p className="page-lede">
+          Smaller timeframes have worse signal-to-noise. Set the maximum risk per trade allowed at each timeframe, as a
+          decimal of account equity (e.g. 0.005 = 0.5%). Trade Entry enforces this at save time.
+        </p>
+        <div className="form-grid form-grid--tf-risk">
+          {TIMEFRAME_OPTIONS.map((tf) => (
+            <TextField
+              key={tf}
+              label={tf}
+              type="number"
+              step="0.0001"
+              min="0"
+              value={form.risk_by_timeframe[tf] ?? ""}
+              onChange={(e) => setTfRisk(tf, e.target.value)}
+              helperText={`= ${pctOf(form.risk_by_timeframe[tf])}`}
+            />
+          ))}
+        </div>
+
         <div className="form-actions">
           <Button type="submit" disabled={update.isPending}>{update.isPending ? "Saving…" : "Save settings"}</Button>
         </div>
@@ -163,4 +191,9 @@ function TargetsSection() {
       </form>
     </div>
   );
+}
+
+function pctOf(decimalStr: string): string {
+  const v = Number(decimalStr);
+  return Number.isFinite(v) ? `${(v * 100).toFixed(3)}%` : "—";
 }

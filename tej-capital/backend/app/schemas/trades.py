@@ -9,6 +9,7 @@ Direction = Literal["long", "short"]
 Session = Literal["asia", "london", "london_ny", "new_york", "late_ny"]
 ExecGrade = Literal["A", "B", "C", "D"]
 MindState = Literal["calm", "rushed", "frustrated", "overconfident", "tilted"]
+Timeframe = Literal["1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w"]
 
 
 class TradeCreate(BaseModel):
@@ -26,6 +27,7 @@ class TradeCreate(BaseModel):
     costs: Decimal = Decimal("0")
     session: Session | None = None
     htf_aligned: bool | None = None
+    timeframe: Timeframe | None = None
     thesis: str | None = None
     review: str | None = None
     execution_grade: ExecGrade | None = None
@@ -77,6 +79,7 @@ class TradeRead(BaseModel):
     costs: Decimal
     session: Session | None
     htf_aligned: bool | None
+    timeframe: Timeframe | None
     thesis: str | None
     review: str | None
     execution_grade: ExecGrade | None

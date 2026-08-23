@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useTrades } from "./useTrades";
 
-export type AttributionBy = "setup" | "asset" | "session" | "htf" | "dow";
+export type AttributionBy = "setup" | "asset" | "session" | "htf" | "dow" | "timeframe";
 export type AttributionVerdict = "not_enough" | "retire" | "marginal" | "working";
 
 export type AttributionRow = {
