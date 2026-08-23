@@ -89,3 +89,20 @@ async def update_journal_entry(entry_id: uuid.UUID, payload: JournalEntryUpdate,
     await db.commit()
     await db.refresh(row)
     return JournalEntryRead.model_validate(row)
+
+
+@router.delete("/{entry_id}", status_code=204)
+async def delete_journal_entry(entry_id: uuid.UUID, db: SessionDep):
+    """Hard-delete a journal entry. Journal entries are the user's private
+    notes and not part of the append-only trading record (R1), so a plain
+    DELETE is fine — no correction ledger, no supersede."""
+    row = (await db.execute(
+        select(JournalEntry).where(JournalEntry.id == entry_id)
+    )).scalar_one_or_none()
+    if not row:
+        raise HTTPException(status_code=404, detail={
+            "error": "entry_not_found",
+            "hint": "No journal entry with that ID exists.",
+        })
+    await db.delete(row)
+    await db.commit()
