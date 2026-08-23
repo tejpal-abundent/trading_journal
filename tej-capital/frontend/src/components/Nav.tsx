@@ -21,10 +21,7 @@ export function Nav() {
   return (
     <nav className="nav" aria-label="Primary">
       <div className="nav__brand">
-        TEJ CAPITAL
-        <span className="nav__brand-mark" aria-hidden="true">
-          &amp;
-        </span>
+        T<span className="nav__brand-mark" aria-hidden="true">&amp;</span>M CAPITAL
       </div>
       <ul className="nav__list">
         {LINKS.map((link) => (

@@ -38,7 +38,7 @@ export default function Allocator() {
     <AllocatorShell>
       <div className="tearsheet">
         <div className="tearsheet__header">
-          <div className="tearsheet__brand">TEJ CAPITAL</div>
+          <div className="tearsheet__brand">T&amp;M CAPITAL</div>
           <div className="tearsheet__meta">
             <div>{data.label}</div>
             <div>Generated {new Date(data.generated_at).toLocaleDateString()}</div>

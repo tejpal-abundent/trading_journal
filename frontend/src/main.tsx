@@ -29,7 +29,7 @@ function Shell() {
               }}
               style={{ cursor: "pointer" }}
             >
-              TEJ Capital ↗
+              T&amp;M Capital ↗
             </a>
           </div>
         </nav>

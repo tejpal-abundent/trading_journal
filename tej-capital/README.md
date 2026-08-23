@@ -1,8 +1,12 @@
-# TEJ CAPITAL
+# T&M Capital
 
 Fund-operations platform for a single discretionary trader. See
 `../docs/superpowers/specs/2026-08-16-tej-capital-design.md` for the
 authoritative spec.
+
+(Historical: the code paths, URL slug (`/tej-capital/`), and DB tables
+keep the `tej_` / `tej-capital` prefix because renaming those is
+invasive; the user-facing brand is T&M Capital.)
 
 ## Quick start
 

@@ -124,7 +124,7 @@ export default function Tearsheet() {
       {pdfWarning && <div className="banner banner--caution page-section">{pdfWarning}</div>}
 
       <div className="tearsheet__header">
-        <div className="tearsheet__brand">TEJ CAPITAL</div>
+        <div className="tearsheet__brand">T&amp;M CAPITAL</div>
         <div className="tearsheet__meta">
           <div>Discretionary multi-asset strategy</div>
           <div>{monthParam} · {data.source === "frozen" ? `frozen as of ${data.as_of_date}` : "live"}</div>
