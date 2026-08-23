@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { useAccounts, type Account } from "../hooks/useAccounts";
-import { useLedgerYear } from "../hooks/useLedger";
+import { useLedgerYear, useRecentMarks } from "../hooks/useLedger";
 import { EmptyState } from "../components/EmptyState";
 import { YearLedger } from "../components/YearLedger";
 import { SectionHeader } from "../components/SectionHeader";
 import { Button } from "../components/Button";
+
+const RECENT_ACTIVITY_DAYS = 90;
+const SPARSE_MARK_THRESHOLD = 60;
 
 export default function Ledger() {
   const { data: accounts, isLoading: accountsLoading } = useAccounts();
@@ -15,6 +18,7 @@ export default function Ledger() {
   const [year, setYear] = useState(currentYear);
 
   const ledger = useLedgerYear(activeId, year);
+  const recent = useRecentMarks(activeId, RECENT_ACTIVITY_DAYS);
 
   if (!accountsLoading && !accounts?.length) {
     return (
@@ -68,8 +72,24 @@ export default function Ledger() {
         </div>
       </div>
 
+      {hasAnyMarks && s.markedDays < SPARSE_MARK_THRESHOLD && (
+        <div className="page-section">
+          <div className="chart-card">
+            <div className="chart-card__title">Recent activity — last {RECENT_ACTIVITY_DAYS} days</div>
+            <YearLedger
+              year={year}
+              marks={recent.marks}
+              rangeDays={RECENT_ACTIVITY_DAYS}
+              cellSize={22}
+              showMonthLabels
+              showWeekdayLabels
+            />
+          </div>
+        </div>
+      )}
+
       {hasAnyMarks ? (
-        <YearLedger year={year} marks={ledger.marks} />
+        <YearLedger year={year} marks={ledger.marks} showMonthLabels showWeekdayLabels />
       ) : (
         <EmptyState
           title="No marks yet"

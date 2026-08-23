@@ -116,6 +116,36 @@ export function useLedgerYear(accountId: string | undefined, year: number) {
   return { ...query, marks, stats };
 }
 
+/**
+ * Last `days` calendar days of marks ending today, independent of the year
+ * being browsed elsewhere on the page. Backs the Ledger page's "recent
+ * activity" zoom card, which is about "what have I actually been doing
+ * lately" rather than a specific calendar year.
+ */
+export function useRecentMarks(accountId: string | undefined, days: number) {
+  const since = shiftISODate(todayISO(), -(days + 5));
+  const query = useNav(accountId, since);
+
+  const marks: YearLedgerMark[] = useMemo(() => {
+    const rows = query.data ?? [];
+    const cutoff = shiftISODate(todayISO(), -(days - 1));
+    const out: YearLedgerMark[] = [];
+    let prevEquity: number | null = null;
+    for (const row of rows) {
+      const equity = Number(row.closing_equity);
+      const return_pct = prevEquity != null && prevEquity !== 0 ? (equity - prevEquity) / prevEquity : 0;
+      const pnl = prevEquity != null ? equity - prevEquity : null;
+      if (row.as_of_date >= cutoff) {
+        out.push({ date: row.as_of_date, return_pct, pnl });
+      }
+      prevEquity = equity;
+    }
+    return out;
+  }, [query.data, days]);
+
+  return { ...query, marks };
+}
+
 /** Dates within [start, end] (inclusive) that have no mark, given a set of marked dates. */
 export function findMissedDays(markedDates: Set<string>, startISO: string, endISO: string): string[] {
   const missed: string[] = [];

@@ -653,6 +653,42 @@ select.field__input {
   max-width: 100%;
 }
 
+.year-ledger__layout {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.year-ledger__weekday-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.year-ledger__weekday-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: var(--size-micro);
+  color: var(--ink-3);
+}
+
+.year-ledger__month-row {
+  display: flex;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.year-ledger__month-label {
+  font-family: var(--font-mono);
+  font-size: var(--size-caption);
+  color: var(--ink-3);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .year-ledger__grid {
   display: flex;
   gap: 2px;
@@ -667,12 +703,11 @@ select.field__input {
 }
 
 .year-ledger__cell {
-  width: 12px;
-  height: 12px;
   border-radius: 2px;
   border: 1px solid var(--ground-3);
   background: transparent;
   transition: border-color var(--duration-1) var(--ease-out);
+  flex-shrink: 0;
 }
 
 .year-ledger__cell--pad {

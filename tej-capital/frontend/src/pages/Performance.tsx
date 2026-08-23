@@ -3,12 +3,14 @@ import {
   ResponsiveContainer, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
 } from "recharts";
 import { useLiveTearsheet, useEquitySeries, rollingSharpe, filterPeriod } from "../hooks/useMetrics";
+import { useSettings } from "../hooks/useSettings";
 import { MetricCard } from "../components/MetricCard";
 import { VerdictBand } from "../components/VerdictBand";
 import { MetricGroup } from "../components/MetricGroup";
 import { EmptyState } from "../components/EmptyState";
 import { SectionHeader } from "../components/SectionHeader";
 import { SegmentedControl } from "../components/SegmentedControl";
+import { DollarEquityCurve } from "../components/DollarEquityCurve";
 import { pct, num } from "../lib/format";
 import { buildMetricGroup, buildDisciplineGroup, METRIC_GROUP_DEFS } from "../lib/metricMeta";
 
@@ -29,12 +31,21 @@ function periodStart(period: Period, custom: string): string | null {
 export default function Performance() {
   const { data: tearsheet, isLoading } = useLiveTearsheet("composite");
   const { data: equity, isLoading: equityLoading } = useEquitySeries();
+  const { data: settings } = useSettings();
   const [period, setPeriod] = useState<Period>("inception");
   const [customDate, setCustomDate] = useState("");
 
   const start = periodStart(period, customDate);
   const chartData = useMemo(() => filterPeriod(equity, start), [equity, start]);
   const sharpeSeries = useMemo(() => rollingSharpe(chartData, 63), [chartData]);
+  const startingCapital = settings ? Number(settings.starting_capital) : null;
+  const dollarData = useMemo(
+    () =>
+      startingCapital != null
+        ? chartData.map((p) => ({ date: p.date, dollars: p.equity * startingCapital }))
+        : [],
+    [chartData, startingCapital],
+  );
 
   if (isLoading) {
     return <EmptyState title="Performance" body="Loading the live tearsheet…" />;
@@ -92,7 +103,7 @@ export default function Performance() {
 
       <div className="page-section">
         <div className="chart-card">
-          <div className="chart-card__title">Equity curve{start ? ` — from ${start}` : ""}</div>
+          <div className="chart-card__title">Equity curve (percent){start ? ` — from ${start}` : ""}</div>
           {equityLoading ? (
             <p className="page-lede">Loading equity series…</p>
           ) : chartData.length < 2 ? (
@@ -112,6 +123,19 @@ export default function Performance() {
                 <Line type="monotone" dataKey="equity" stroke="var(--accent)" strokeWidth={1.5} dot={false} />
               </LineChart>
             </ResponsiveContainer>
+          )}
+        </div>
+
+        <div className="chart-card">
+          <div className="chart-card__title">Equity curve (dollars){start ? ` — from ${start}` : ""}</div>
+          {equityLoading ? (
+            <p className="page-lede">Loading equity series…</p>
+          ) : startingCapital == null ? (
+            <p className="page-lede">Set a starting capital in Settings to see the dollar curve.</p>
+          ) : dollarData.length < 2 ? (
+            <p className="page-lede">Not enough marked days in this period to draw a curve.</p>
+          ) : (
+            <DollarEquityCurve data={dollarData} startingCapital={startingCapital} />
           )}
         </div>
 
