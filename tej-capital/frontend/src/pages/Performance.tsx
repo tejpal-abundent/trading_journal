@@ -11,6 +11,8 @@ import { EmptyState } from "../components/EmptyState";
 import { SectionHeader } from "../components/SectionHeader";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { DollarEquityCurve } from "../components/DollarEquityCurve";
+import { Sparkline } from "../components/Sparkline";
+import { Gauge } from "../components/Gauge";
 import { pct, num } from "../lib/format";
 import { buildMetricGroup, buildDisciplineGroup, METRIC_GROUP_DEFS } from "../lib/metricMeta";
 
@@ -93,10 +95,52 @@ export default function Performance() {
       )}
 
       <div className="metric-grid-4">
-        <MetricCard label="Cumulative return" value={pct(r.cumulative_twr.value)} n={r.cumulative_twr.n} tone={ton(r.cumulative_twr.value)} />
-        <MetricCard label="Sharpe" value={num(tearsheet.risk_adjusted.sharpe.value)} n={tearsheet.risk_adjusted.sharpe.n} />
-        <MetricCard label="Max drawdown" value={pct(risk.max_drawdown.value)} n={risk.max_drawdown.n} tone="loss" />
-        <MetricCard label="Current drawdown" value={pct(risk.current_drawdown.value)} n={risk.current_drawdown.n} tone={risk.current_drawdown.value && risk.current_drawdown.value < 0 ? "loss" : "neutral"} />
+        <MetricCard
+          label="Cumulative return"
+          value={pct(r.cumulative_twr.value)}
+          n={r.cumulative_twr.n}
+          tone={ton(r.cumulative_twr.value)}
+          info="The percent your account grew, cleaned of deposits and withdrawals. +5% means $100 became $105 purely from trading."
+          visual={chartData.length >= 2 ? <Sparkline data={chartData.map((p) => p.equity)} /> : undefined}
+        />
+        <MetricCard
+          label="Sharpe"
+          value={num(tearsheet.risk_adjusted.sharpe.value)}
+          n={tearsheet.risk_adjusted.sharpe.n}
+          info="Reward per unit of risk. Above 1 is good, above 2 is rare, above 3 is either genius or a small sample. This uses ALL volatility (up AND down)."
+          visual={
+            <Gauge
+              value={tearsheet.risk_adjusted.sharpe.value}
+              min={-1}
+              max={3}
+              zones={[
+                { from: -1, to: 0, color: "var(--loss-soft)" },
+                { from: 0, to: 1, color: "var(--caution-soft)" },
+                { from: 1, to: 2, color: "var(--gain-soft)" },
+                { from: 2, to: 3, color: "var(--gain)" },
+              ]}
+            />
+          }
+        />
+        <MetricCard
+          label="Max drawdown"
+          value={pct(risk.max_drawdown.value)}
+          n={risk.max_drawdown.n}
+          tone="loss"
+          info="The worst peak-to-bottom drop your account has ever had. −10% means at some point you were 10% below a previous high."
+          visual={
+            chartData.length >= 2 ? (
+              <Sparkline data={chartData.map((p) => -Math.abs(p.drawdown))} color="var(--loss)" />
+            ) : undefined
+          }
+        />
+        <MetricCard
+          label="Current drawdown"
+          value={pct(risk.current_drawdown.value)}
+          n={risk.current_drawdown.n}
+          tone={risk.current_drawdown.value && risk.current_drawdown.value < 0 ? "loss" : "neutral"}
+          info="How far below your last peak you are RIGHT NOW. 0% means you're at all-time high. Compare against your Drawdown Killswitch limit on the Policy tab."
+        />
       </div>
 
       <VerdictBand v={tearsheet.verdict} />

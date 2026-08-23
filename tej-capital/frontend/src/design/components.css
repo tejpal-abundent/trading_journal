@@ -419,11 +419,72 @@ select.field__input {
   border-radius: var(--radius-lg);
 }
 
+.metric__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
 .metric__label {
   font-size: var(--size-caption);
   color: var(--ink-3);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+
+/* Info icon + hover tooltip. Plain-English one-liner per metric. */
+.metric__info {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 12px;
+  color: var(--ink-4);
+  cursor: help;
+  transition: color var(--duration-1) var(--ease-out);
+  outline: none;
+}
+.metric__info:hover,
+.metric__info:focus-visible {
+  color: var(--ink-2);
+}
+.metric__tooltip {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: 20;
+  min-width: 220px;
+  max-width: 280px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--ground-2);
+  border: 1px solid var(--ground-3);
+  border-radius: var(--radius-md);
+  color: var(--ink-1);
+  font-size: var(--size-caption);
+  line-height: 1.5;
+  text-transform: none;
+  letter-spacing: 0;
+  box-shadow: var(--elev-2);
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity var(--duration-1) var(--ease-out),
+    transform var(--duration-1) var(--ease-out);
+}
+.metric__info:hover .metric__tooltip,
+.metric__info:focus-visible .metric__tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.metric__visual {
+  margin-top: var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .metric__value {
