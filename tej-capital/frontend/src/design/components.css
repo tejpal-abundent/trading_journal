@@ -545,17 +545,26 @@ select.field__input {
 .nav__brand {
   font-family: var(--font-serif);
   font-size: var(--size-h3);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   color: var(--ink-1);
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
   padding: 0 var(--space-3);
+  font-weight: 500;
+  white-space: nowrap;
 }
 
+/* Monogram-inline ampersand — italic serif, tucked between the letters,
+   subtle accent chroma so it reads as a unit (T&M), not three tokens.
+   Used inside .nav__brand, .tearsheet__brand, and any future brand mark. */
+.brand-mark,
 .nav__brand-mark {
-  color: var(--ink-3);
   font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--accent);
+  font-size: 1.08em;
+  letter-spacing: 0;
+  margin: 0 -0.06em;
+  vertical-align: baseline;
 }
 
 .nav__list {
