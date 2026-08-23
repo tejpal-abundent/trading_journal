@@ -6,6 +6,7 @@ import Today from "./pages/Today";
 import TradeEntry from "./pages/TradeEntry";
 import Ledger from "./pages/Ledger";
 import Performance from "./pages/Performance";
+import Rhythm from "./pages/Rhythm";
 import Monthly from "./pages/Monthly";
 import Attribution from "./pages/Attribution";
 import Policy from "./pages/Policy";
@@ -31,6 +32,7 @@ export function App() {
             <Route path="/trades/new" element={<TradeEntry />} />
             <Route path="/ledger" element={<Ledger />} />
             <Route path="/performance" element={<Performance />} />
+            <Route path="/rhythm" element={<Rhythm />} />
             <Route path="/monthly" element={<Monthly />} />
             <Route path="/attribution" element={<Attribution />} />
             <Route path="/policy" element={<Policy />} />

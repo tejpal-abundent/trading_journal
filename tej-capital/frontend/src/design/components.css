@@ -283,6 +283,11 @@ select.field__input {
   color: var(--gain);
 }
 
+.chip--neutral {
+  background: var(--ground-3);
+  color: var(--ink-3);
+}
+
 /* ---------- Streak cards (Ledger) ---------- */
 
 .streak-row {
@@ -431,6 +436,10 @@ select.field__input {
 
 .metric--loss .metric__value {
   color: var(--loss);
+}
+
+.metric__chip-row {
+  margin-top: var(--space-2);
 }
 
 /* ---------- VerdictBand ---------- */
@@ -1012,6 +1021,50 @@ select.field__input {
   .metric-grid-4 {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+.metric-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+@media (max-width: 800px) {
+  .metric-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Rhythm ---------- */
+
+.rhythm-footer {
+  margin-top: var(--space-4);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--size-caption);
+  color: var(--ink-3);
+}
+
+.rhythm-tooltip {
+  background: var(--ground-2);
+  border: 1px solid var(--ground-3);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--size-caption);
+  color: var(--ink-1);
+  box-shadow: var(--elev-1);
+}
+
+.rhythm-tooltip__date {
+  color: var(--ink-3);
+  margin-bottom: var(--space-1);
+}
+
+.rhythm-tooltip__value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
 /* ---------- Page section spacing ---------- */

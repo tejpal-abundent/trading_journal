@@ -15,6 +15,9 @@ class SettingsCreate(BaseModel):
     benchmark_sharpe: Decimal = Decimal("0")
     confidence_level: Decimal = Decimal("0.95")
     strategy_variants_tested: int = 1
+    daily_target_pct: Decimal = Decimal("0.003")
+    weekly_target_pct: Decimal = Decimal("0.015")
+    monthly_target_pct: Decimal = Decimal("0.0614")
 
 
 class SettingsUpdate(BaseModel):
@@ -27,6 +30,9 @@ class SettingsUpdate(BaseModel):
     benchmark_sharpe: Decimal | None = None
     confidence_level: Decimal | None = None
     strategy_variants_tested: int | None = None
+    daily_target_pct: Decimal | None = None
+    weekly_target_pct: Decimal | None = None
+    monthly_target_pct: Decimal | None = None
 
 
 class SettingsRead(BaseModel):
@@ -40,6 +46,9 @@ class SettingsRead(BaseModel):
     benchmark_sharpe: Decimal
     confidence_level: Decimal
     strategy_variants_tested: int
+    daily_target_pct: Decimal
+    weekly_target_pct: Decimal
+    monthly_target_pct: Decimal
     model_config = {"from_attributes": True}
 
 

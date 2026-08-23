@@ -12,6 +12,9 @@ export type Settings = {
   benchmark_sharpe: string;
   confidence_level: string;
   strategy_variants_tested: number;
+  daily_target_pct: string;
+  weekly_target_pct: string;
+  monthly_target_pct: string;
 };
 
 export function useSettings() {

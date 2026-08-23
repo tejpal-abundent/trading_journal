@@ -8,10 +8,13 @@ import { EmptyState } from "../components/EmptyState";
 const VARIANTS_HELPER =
   "Every parameter you swept in a backtest counts. Testing 200 variants and keeping the best one inflates its apparent edge; this number corrects for that.";
 
+const TARGET_HELPER = "As a decimal, e.g. 0.015 = 1.5%.";
+
 type FormState = {
   starting_capital: string; record_start_date: string; base_currency: string;
   risk_free_rate: string; trading_days_per_year: string; minimum_acceptable_return: string;
   benchmark_sharpe: string; confidence_level: string; strategy_variants_tested: string;
+  daily_target_pct: string; weekly_target_pct: string; monthly_target_pct: string;
 };
 
 function toForm(s: SettingsT): FormState {
@@ -20,6 +23,8 @@ function toForm(s: SettingsT): FormState {
     risk_free_rate: s.risk_free_rate, trading_days_per_year: String(s.trading_days_per_year),
     minimum_acceptable_return: s.minimum_acceptable_return, benchmark_sharpe: s.benchmark_sharpe,
     confidence_level: s.confidence_level, strategy_variants_tested: String(s.strategy_variants_tested),
+    daily_target_pct: s.daily_target_pct, weekly_target_pct: s.weekly_target_pct,
+    monthly_target_pct: s.monthly_target_pct,
   };
 }
 
@@ -45,6 +50,8 @@ export default function Settings() {
       trading_days_per_year: Number(form.trading_days_per_year),
       minimum_acceptable_return: form.minimum_acceptable_return, benchmark_sharpe: form.benchmark_sharpe,
       confidence_level: form.confidence_level, strategy_variants_tested: Number(form.strategy_variants_tested),
+      daily_target_pct: form.daily_target_pct, weekly_target_pct: form.weekly_target_pct,
+      monthly_target_pct: form.monthly_target_pct,
     });
   }
 
@@ -77,6 +84,35 @@ export default function Settings() {
           onChange={(e) => set("strategy_variants_tested", e.target.value)}
           helperText={VARIANTS_HELPER}
         />
+
+        <SectionHeader title="Target rhythm" />
+        <div className="form-row">
+          <TextField
+            label="Daily target"
+            type="number"
+            step="0.0001"
+            value={form.daily_target_pct}
+            onChange={(e) => set("daily_target_pct", e.target.value)}
+            helperText={TARGET_HELPER}
+          />
+          <TextField
+            label="Weekly target"
+            type="number"
+            step="0.0001"
+            value={form.weekly_target_pct}
+            onChange={(e) => set("weekly_target_pct", e.target.value)}
+            helperText={TARGET_HELPER}
+          />
+        </div>
+        <TextField
+          label="Monthly target"
+          type="number"
+          step="0.0001"
+          value={form.monthly_target_pct}
+          onChange={(e) => set("monthly_target_pct", e.target.value)}
+          helperText={TARGET_HELPER}
+        />
+
         <div className="form-actions">
           <Button type="submit" disabled={update.isPending}>{update.isPending ? "Saving…" : "Save settings"}</Button>
         </div>

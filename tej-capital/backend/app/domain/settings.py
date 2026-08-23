@@ -25,6 +25,9 @@ class Settings(Base):
     benchmark_sharpe: Mapped[Decimal] = mapped_column(Numeric(6, 4), nullable=False, default=Decimal("0"))
     confidence_level: Mapped[Decimal] = mapped_column(Numeric(4, 3), nullable=False, default=Decimal("0.95"))
     strategy_variants_tested: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    daily_target_pct: Mapped[Decimal] = mapped_column(Numeric(6, 4), nullable=False, default=Decimal("0.003"))
+    weekly_target_pct: Mapped[Decimal] = mapped_column(Numeric(6, 4), nullable=False, default=Decimal("0.015"))
+    monthly_target_pct: Mapped[Decimal] = mapped_column(Numeric(6, 4), nullable=False, default=Decimal("0.0614"))
 
 
 class Target(Base):

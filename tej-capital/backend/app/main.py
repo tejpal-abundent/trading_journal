@@ -17,6 +17,7 @@ from app.api.metrics import router as metrics_router, tearsheet_router
 from app.api.nav import router as nav_router
 from app.api.playbook import router as playbook_router
 from app.api.policy import router as policy_router
+from app.api.rhythm import router as rhythm_router
 from app.api.settings import router as settings_router
 from app.api.trades import router as trades_router
 
@@ -58,6 +59,7 @@ app.include_router(allocator_router)
 app.include_router(ingest_router)
 app.include_router(export_router)
 app.include_router(ai_router)
+app.include_router(rhythm_router)
 
 
 @app.exception_handler(NotConfiguredError)
