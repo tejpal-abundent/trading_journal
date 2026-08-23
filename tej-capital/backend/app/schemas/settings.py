@@ -47,6 +47,15 @@ class SettingsUpdate(BaseModel):
     monthly_target_pct: Decimal | None = None
     risk_by_timeframe: dict[str, Decimal] | None = None
 
+    @field_validator("risk_by_timeframe", mode="after")
+    @classmethod
+    def _decimals_to_floats(cls, v):
+        # JSONB via asyncpg cannot serialize Decimal — floats are honest here
+        # anyway (nobody sets risk to 0.00250001).
+        if v is None:
+            return None
+        return {k: float(val) for k, val in v.items()}
+
 
 class SettingsRead(BaseModel):
     id: int
