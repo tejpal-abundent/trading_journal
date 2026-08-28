@@ -30,11 +30,25 @@ class Settings(BaseSettings):
         """Managed Postgres providers (Render, Heroku, Neon, Supabase) hand back
         `postgres://` or `postgresql://` connection strings. SQLAlchemy's async
         engine needs the driver name spelled out — rewrite to asyncpg when
-        neither driver is specified."""
+        neither driver is specified.
+
+        Also translate the libpq/psycopg2 `sslmode=` query param to the
+        asyncpg-friendly `ssl=` form. Neon and Supabase both hand out URLs
+        with `?sslmode=require&channel_binding=require`; asyncpg refuses the
+        first and doesn't know the second, so we normalize both away."""
         if v.startswith("postgres://"):
             v = "postgresql://" + v[len("postgres://") :]
         if v.startswith("postgresql://"):
             v = "postgresql+asyncpg://" + v[len("postgresql://") :]
+        # sslmode -> ssl (asyncpg vocabulary)
+        v = v.replace("?sslmode=", "?ssl=").replace("&sslmode=", "&ssl=")
+        # channel_binding is a libpq feature asyncpg doesn't parse; drop it
+        v = v.replace("&channel_binding=require", "").replace(
+            "?channel_binding=require", "?"
+        )
+        # Clean up a dangling '?' if channel_binding was the only query param
+        if v.endswith("?"):
+            v = v[:-1]
         return v
 
 
