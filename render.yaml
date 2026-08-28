@@ -1,8 +1,13 @@
 # Render Blueprint for the TEJ Capital subsystem.
 #
+# Runs only the FastAPI web service on Render.
+# The database is Neon (Postgres, AWS Frankfurt eu-central-1, free tier)
+# — no Render-managed Postgres is declared here, so TEJ_DATABASE_URL is
+# set manually in the Render dashboard as a plain env var pointing at the
+# Neon connection string.
+#
 # The existing `trading_journal-1` API service is intentionally NOT declared
-# here — it was created outside Blueprint and should stay that way. This
-# Blueprint only manages the new tej-capital stack (API + Postgres).
+# here — it was created outside Blueprint and should stay that way.
 #
 # To provision: Render Dashboard → Blueprints → New Blueprint Instance →
 # pick the tejpal-abundent/trading_journal repo → main branch.
@@ -17,10 +22,11 @@ services:
     region: oregon
     healthCheckPath: /api/health
     envVars:
+      # Points at Neon (AWS Frankfurt). Value set manually in Render dashboard
+      # — sync:false keeps it out of git. asyncpg is fine with sslmode/
+      # channel_binding params; config.py normalises them at startup.
       - key: TEJ_DATABASE_URL
-        fromDatabase:
-          name: tej-capital-db
-          property: connectionString
+        sync: false
       - key: TEJ_ENV
         value: prod
       - key: TEJ_CORS_ORIGINS
@@ -42,11 +48,3 @@ services:
         sync: false
       - key: TEJ_ALLOCATOR_LINK_SECRET
         generateValue: true
-
-databases:
-  - name: tej-capital-db
-    plan: free
-    databaseName: tej_capital
-    user: tej
-    postgresMajorVersion: 16
-    region: oregon
