@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { HabitCell, nextHabitCellState } from "./HabitCell";
+import { HabitCell } from "./HabitCell";
 import type { HabitDefinition } from "../hooks/useHabits";
 import "../design/components.css";
 
@@ -24,15 +24,8 @@ export function HabitRow({
 }: HabitRowProps) {
   const [draftLabel, setDraftLabel] = useState(definition.label);
 
-  function handleCellClick(day: string) {
-    const current = entries[day];
-    const next = nextHabitCellState(current);
-    if (next === undefined) {
-      onClear(day);
-    } else {
-      onSetStatus(day, next);
-    }
-  }
+  // Two-zone cell — see HabitCell. Left click → true, right click → false,
+  // click on already-filled cell → clear. No cycle.
 
   function saveRename() {
     const trimmed = draftLabel.trim();
@@ -81,7 +74,9 @@ export function HabitRow({
             key={day}
             state={entries[day]}
             label={`${definition.label} — ${day}`}
-            onClick={() => handleCellClick(day)}
+            onSetTrue={() => onSetStatus(day, true)}
+            onSetFalse={() => onSetStatus(day, false)}
+            onClear={() => onClear(day)}
           />
         ))}
       </div>

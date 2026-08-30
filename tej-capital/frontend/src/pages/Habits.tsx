@@ -30,17 +30,18 @@ function monthLabel(year: number, month: number): string {
   });
 }
 
-function lastTwelveMonths(currentYear: number, currentMonth: number): { year: number; month: number }[] {
+/** Range spanning back 12 months + current + forward 12 months. Ordered
+ * newest → oldest so the current month sits near the top of the dropdown
+ * with future months just above it (for planning ahead) and history below. */
+function monthRange(currentYear: number, currentMonth: number, back = 12, forward = 12): { year: number; month: number }[] {
   const out: { year: number; month: number }[] = [];
   let y = currentYear;
-  let m = currentMonth;
-  for (let i = 0; i < 12; i++) {
+  let m = currentMonth + forward;
+  while (m > 12) { m -= 12; y += 1; }
+  for (let i = 0; i < back + forward + 1; i++) {
     out.push({ year: y, month: m });
     m -= 1;
-    if (m === 0) {
-      m = 12;
-      y -= 1;
-    }
+    if (m === 0) { m = 12; y -= 1; }
   }
   return out;
 }
@@ -132,7 +133,7 @@ export default function Habits() {
   const updateDefinition = useUpdateDefinition();
   const deleteDefinition = useDeleteDefinition();
 
-  const monthOptions = useMemo(() => lastTwelveMonths(currentYear, currentMonth), [currentYear, currentMonth]);
+  const monthOptions = useMemo(() => monthRange(currentYear, currentMonth), [currentYear, currentMonth]);
 
   function shiftMonth(direction: 1 | -1) {
     const base = selection === "all" ? { year: currentYear, month: currentMonth } : selection;
