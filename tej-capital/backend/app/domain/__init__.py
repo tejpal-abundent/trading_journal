@@ -10,10 +10,12 @@ from app.domain.metrics import MetricSnapshot
 from app.domain.reconciliations import BrokerReconciliation
 from app.domain.settings import Settings, Target
 from app.domain.allocator import AllocatorToken
+from app.domain.habits import HabitDefinition, HabitLog
 
 __all__ = [
     "Account", "NavSnapshot", "CashFlow", "Trade", "PlaybookSetup",
     "JournalEntry", "PolicyLimit", "PolicyAmendment", "LimitBreach",
     "PolicyDocument", "CorrectionLedger", "MetricSnapshot",
     "BrokerReconciliation", "Settings", "Target", "AllocatorToken",
+    "HabitDefinition", "HabitLog",
 ]

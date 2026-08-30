@@ -10,6 +10,7 @@ from app.api.audit import router as audit_router
 from app.api.errors import NotConfiguredError
 from app.api.export import router as export_router
 from app.api.flows import router as flows_router
+from app.api.habits import router as habits_router
 from app.api.health import router as health_router
 from app.api.ingest import router as ingest_router
 from app.api.journal import router as journal_router
@@ -60,6 +61,7 @@ app.include_router(ingest_router)
 app.include_router(export_router)
 app.include_router(ai_router)
 app.include_router(rhythm_router)
+app.include_router(habits_router)
 
 
 @app.exception_handler(NotConfiguredError)

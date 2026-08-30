@@ -1264,6 +1264,173 @@ select.field__input {
   }
 }
 
+/* ---------- Habits ---------- */
+
+.habit-month-select {
+  width: auto;
+  font-family: var(--font-mono);
+}
+
+.habit-empty-copy {
+  color: var(--ink-3);
+  font-style: italic;
+  margin-bottom: var(--space-5);
+}
+
+.habit-card {
+  background: var(--ground-2);
+  border: 1px solid var(--ground-3);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+}
+
+.habit-card__header {
+  font-family: var(--font-mono);
+  font-size: var(--size-caption);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  margin-bottom: var(--space-4);
+}
+
+.habit-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--ground-3);
+}
+
+.habit-row:first-of-type {
+  border-top: none;
+}
+
+.habit-row__label {
+  flex: 0 0 250px;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--size-body);
+  color: var(--ink-1);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color var(--duration-1) var(--ease-out);
+}
+
+.habit-row__label:hover {
+  color: var(--accent);
+}
+
+.habit-row__edit {
+  flex: 0 0 250px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.habit-row__edit-input {
+  height: 30px;
+}
+
+.habit-row__edit-actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.habit-row__icon-btn {
+  height: 24px;
+  width: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ground-1);
+  border: 1px solid var(--ground-3);
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  cursor: pointer;
+  font-size: var(--size-caption);
+  transition: background var(--duration-1) var(--ease-out), color var(--duration-1) var(--ease-out);
+}
+
+.habit-row__icon-btn:hover {
+  background: var(--ground-3);
+  color: var(--ink-1);
+}
+
+.habit-row__cells {
+  flex: 1 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.habit-row__streak {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--size-caption);
+  color: var(--ink-3);
+  min-width: 32px;
+  text-align: right;
+}
+
+.habit-cell {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 0;
+  transition: transform var(--duration-1) var(--ease-out), background var(--duration-1) var(--ease-out),
+    border-color var(--duration-1) var(--ease-out);
+}
+
+.habit-cell--empty {
+  background: transparent;
+  border: 1px solid var(--ground-3);
+}
+
+.habit-cell--true {
+  background: var(--gain-soft);
+  border: 1px solid transparent;
+  color: var(--gain);
+  transform: scale(1.15);
+}
+
+.habit-cell--false {
+  background: var(--loss-soft);
+  border: 1px solid transparent;
+  color: var(--loss);
+  transform: scale(1.15);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .habit-cell {
+    transition: none;
+    transform: none !important;
+  }
+}
+
+.habit-manage-row {
+  margin-top: var(--space-2);
+}
+
+.habit-add-form {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.habit-add-form__select {
+  width: auto;
+}
+
 /* ---------- Allocator (public, no-layout) shell ---------- */
 
 .allocator-shell {
