@@ -3,6 +3,7 @@ import { SectionHeader } from "../components/SectionHeader";
 import { MetricCard } from "../components/MetricCard";
 import { EmptyState } from "../components/EmptyState";
 import { HabitRow } from "../components/HabitRow";
+import { SegmentedControl } from "../components/SegmentedControl";
 import {
   useHabitMonth, useToggleHabit, useDeleteHabitLog,
   useCreateDefinition, useUpdateDefinition, useDeleteDefinition,
@@ -114,6 +115,68 @@ function AddHabitForm({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** One month rendered as a habit grid. Owns its own data fetch (useHabitMonth)
+ * so the Year view can stack twelve of these without a dedicated year endpoint.
+ * All the mutation handlers + editing state are lifted from the parent to keep
+ * behaviour identical whether you're on Month view or Year view. */
+function MonthPanel({
+  year, month,
+  editingId, onStartEdit, onCancelEdit,
+  onSetStatus, onClear, onRename, onMove, onRetire,
+}: {
+  year: number; month: number;
+  editingId: string | null;
+  onStartEdit: (id: string) => void;
+  onCancelEdit: () => void;
+  onSetStatus: (habitId: string, date: string, status: boolean) => void;
+  onClear: (habitId: string, date: string) => void;
+  onRename: (habitId: string, label: string) => void;
+  onMove: (definition: HabitDefinition, direction: "up" | "down") => void;
+  onRetire: (habitId: string) => void;
+}) {
+  const { data, isLoading } = useHabitMonth(year, month);
+  const byCategory: Record<HabitCategory, HabitDefinition[]> = { trading: [], personal: [], body: [], sleep: [] };
+  if (data) for (const def of data.definitions) byCategory[def.category].push(def);
+  if (isLoading || !data) {
+    return <div className="page-section habit-card habit-month-panel">
+      <div className="habit-month-panel__header">{monthLabel(year, month)}</div>
+      <p className="page-lede">Loading…</p>
+    </div>;
+  }
+  return (
+    <div className="page-section habit-month-panel">
+      <div className="habit-month-panel__header">{monthLabel(year, month)}</div>
+      {CATEGORY_ORDER.map((category) => {
+        const habits = byCategory[category];
+        if (habits.length === 0) return null;
+        return (
+          <div key={category} className="habit-month-panel__category">
+            <div className="habit-card__header">{CATEGORY_LABELS[category]}</div>
+            {habits.map((definition) => (
+              <HabitRow
+                key={definition.id}
+                definition={definition}
+                days={data.days}
+                entries={data.entries[definition.id] ?? {}}
+                streak={data.stats[definition.id]?.current_streak ?? 0}
+                isEditing={editingId === definition.id}
+                onStartEdit={() => onStartEdit(definition.id)}
+                onCancelEdit={onCancelEdit}
+                onSetStatus={(date, status) => onSetStatus(definition.id, date, status)}
+                onClear={(date) => onClear(definition.id, date)}
+                onRename={(label) => onRename(definition.id, label)}
+                onMove={(direction) => onMove(definition, direction)}
+                onRetire={() => onRetire(definition.id)}
+              />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+
 export default function Habits() {
   const today = useMemo(() => new Date(), []);
   const currentYear = today.getFullYear();
@@ -122,6 +185,7 @@ export default function Habits() {
   const [selection, setSelection] = useState<MonthSelection>({ year: currentYear, month: currentMonth });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [addingHabit, setAddingHabit] = useState(false);
+  const [viewMode, setViewMode] = useState<"month" | "year">("month");
 
   const displayYear = selection === "all" ? currentYear : selection.year;
   const displayMonth = selection === "all" ? currentMonth : selection.month;
@@ -195,41 +259,98 @@ export default function Habits() {
         title="Habits"
         action={
           <div className="year-switcher">
-            <button type="button" className="btn btn--secondary" onClick={() => shiftMonth(-1)}>
-              ←
-            </button>
-            <select
-              className="field__input habit-month-select"
-              value={selection === "all" ? "all" : monthValue(selection.year, selection.month)}
-              onChange={(e) => {
-                if (e.target.value === "all") {
-                  setSelection("all");
-                } else {
-                  const [y, m] = e.target.value.split("-").map(Number);
-                  setSelection({ year: y, month: m });
-                }
-              }}
-            >
-              {monthOptions.map((opt) => (
-                <option key={monthValue(opt.year, opt.month)} value={monthValue(opt.year, opt.month)}>
-                  {monthLabel(opt.year, opt.month)}
-                </option>
-              ))}
-              <option value="all">All time</option>
-            </select>
-            <button
-              type="button"
-              className="btn btn--secondary"
-              onClick={() => shiftMonth(1)}
-              disabled={isCurrentMonth}
-            >
-              →
-            </button>
+            <SegmentedControl
+              options={[
+                { value: "month", label: "Month" },
+                { value: "year", label: "Year" },
+              ]}
+              value={viewMode}
+              onChange={(v) => setViewMode(v as "month" | "year")}
+            />
+            {viewMode === "month" && (
+              <>
+                <button type="button" className="btn btn--secondary" onClick={() => shiftMonth(-1)}>
+                  ←
+                </button>
+                <select
+                  className="field__input habit-month-select"
+                  value={selection === "all" ? "all" : monthValue(selection.year, selection.month)}
+                  onChange={(e) => {
+                    if (e.target.value === "all") {
+                      setSelection("all");
+                    } else {
+                      const [y, m] = e.target.value.split("-").map(Number);
+                      setSelection({ year: y, month: m });
+                    }
+                  }}
+                >
+                  {monthOptions.map((opt) => (
+                    <option key={monthValue(opt.year, opt.month)} value={monthValue(opt.year, opt.month)}>
+                      {monthLabel(opt.year, opt.month)}
+                    </option>
+                  ))}
+                  <option value="all">All time</option>
+                </select>
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  onClick={() => shiftMonth(1)}
+                  disabled={isCurrentMonth}
+                >
+                  →
+                </button>
+              </>
+            )}
+            {viewMode === "year" && (
+              <select
+                className="field__input habit-month-select"
+                value={displayYear}
+                onChange={(e) => setSelection({ year: Number(e.target.value), month: 1 })}
+              >
+                {[currentYear - 1, currentYear, currentYear + 1].map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            )}
           </div>
         }
       />
       <p className="page-lede">The small things, ticked daily.</p>
 
+      {viewMode === "year" && (
+        <div>
+          <p className="page-lede">Every month of {displayYear} in one scroll. Tick as you go, or backfill anytime.</p>
+          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+            <MonthPanel
+              key={`${displayYear}-${m}`}
+              year={displayYear}
+              month={m}
+              editingId={editingId}
+              onStartEdit={(id) => setEditingId(id)}
+              onCancelEdit={() => setEditingId(null)}
+              onSetStatus={(habitId, date, status) => toggleHabit.mutate({ date, habitId, status })}
+              onClear={(habitId, date) => deleteLog.mutate({ date, habitId })}
+              onRename={(habitId, label) => updateDefinition.mutate({ id: habitId, label })}
+              onMove={(definition, direction) => reorder(definition, direction)}
+              onRetire={(habitId) => {
+                setEditingId(null);
+                deleteDefinition.mutate(habitId);
+              }}
+            />
+          ))}
+          <div className="habit-manage-row">
+            {addingHabit ? (
+              <AddHabitForm onClose={() => setAddingHabit(false)} />
+            ) : (
+              <button type="button" className="btn btn--secondary" onClick={() => setAddingHabit(true)}>
+                + Add habit
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {viewMode === "month" && <>
       <div className="metric-grid-3">
         <MetricCard
           label="Completion this month"
@@ -295,6 +416,7 @@ export default function Habits() {
           </button>
         )}
       </div>
+      </>}
     </div>
   );
 }

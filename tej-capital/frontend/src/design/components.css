@@ -1467,6 +1467,23 @@ select.field__input {
   }
 }
 
+/* Year view: 12 stacked MonthPanels. Each panel gets its own dated header
+   so you can tell which month you're editing while scrolling. */
+.habit-month-panel {
+  margin-top: var(--space-6);
+}
+.habit-month-panel__header {
+  font-family: var(--font-serif);
+  font-size: var(--size-h3);
+  color: var(--ink-1);
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--ground-3);
+}
+.habit-month-panel__category {
+  margin-top: var(--space-4);
+}
+
 .habit-manage-row {
   margin-top: var(--space-2);
 }
