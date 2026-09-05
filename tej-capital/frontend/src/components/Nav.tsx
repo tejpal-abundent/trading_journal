@@ -7,6 +7,7 @@ const currentMonth = new Date().toISOString().slice(0, 7);
 const LINKS: { to: string; label: string; end?: boolean }[] = [
   { to: "/", label: "Today", end: true },
   { to: "/trades/new", label: "Trade Entry" },
+  { to: "/trades", label: "Trade Log" },
   { to: "/ledger", label: "Ledger" },
   { to: "/performance", label: "Performance" },
   { to: "/rhythm", label: "Rhythm" },

@@ -4,6 +4,7 @@ import { queryClient } from "./lib/query";
 import { Layout } from "./components/Layout";
 import Today from "./pages/Today";
 import TradeEntry from "./pages/TradeEntry";
+import TradeLog from "./pages/TradeLog";
 import Ledger from "./pages/Ledger";
 import Performance from "./pages/Performance";
 import Rhythm from "./pages/Rhythm";
@@ -31,6 +32,7 @@ export function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<Today />} />
             <Route path="/trades/new" element={<TradeEntry />} />
+            <Route path="/trades" element={<TradeLog />} />
             <Route path="/ledger" element={<Ledger />} />
             <Route path="/performance" element={<Performance />} />
             <Route path="/rhythm" element={<Rhythm />} />
