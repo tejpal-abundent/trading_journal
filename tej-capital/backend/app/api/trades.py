@@ -83,6 +83,27 @@ class TradeCorrect(BaseModel):
     reason: str = Field(min_length=10)
 
 
+class TradeClose(BaseModel):
+    """Finalise an open trade — sets the exit-side fields in place.
+
+    NOT a correction: the trade wasn't wrong, it just wasn't over. No
+    reason required, no supersede, no correction ledger row. Refused if
+    the trade is already closed (must use /correct for that)."""
+
+    exit_price: Decimal
+    closed_at: datetime
+    gross_pnl: Decimal
+    costs: Decimal = Decimal("0")
+    mae_r: Decimal | None = None
+    mfe_r: Decimal | None = None
+    rule_compliant: bool | None = None
+    breach_note: str | None = None
+    execution_grade: str | None = None
+    state_of_mind: str | None = None
+    review: str | None = None
+    one_sentence_takeaway: str | None = None
+
+
 def _serialize(t: Trade) -> dict:
     data = TradeRead.model_validate(t).model_dump(mode="json")
     data["enrichment_needed"] = t.risk_amount is None
@@ -111,6 +132,19 @@ async def enrichment_queue(db: SessionDep):
     rows = (await db.execute(
         select(Trade)
         .where(Trade.risk_amount.is_(None), Trade.superseded_by.is_(None))
+        .order_by(Trade.opened_at.desc())
+    )).scalars().all()
+    return [_serialize(r) for r in rows]
+
+
+@router.get("/open")
+async def open_positions(db: SessionDep):
+    """Trades that have been opened but not yet closed. Used by the Trade
+    Entry page's Open Positions panel so multi-day / multi-week holds are
+    discoverable a day, a week, or a month later."""
+    rows = (await db.execute(
+        select(Trade)
+        .where(Trade.closed_at.is_(None), Trade.superseded_by.is_(None))
         .order_by(Trade.opened_at.desc())
     )).scalars().all()
     return [_serialize(r) for r in rows]
@@ -181,3 +215,47 @@ async def correct_trade(trade_id: uuid.UUID, payload: TradeCorrect, db: SessionD
     await db.commit()
     await db.refresh(persisted)
     return _serialize(persisted)
+
+
+@router.post("/{trade_id}/close")
+async def close_trade(trade_id: uuid.UUID, payload: TradeClose, db: SessionDep):
+    """Finalise an open trade. Sets the exit-side fields in place — NOT a
+    correction. R-multiple is auto-computed on the model as (gross_pnl - costs)
+    / risk_amount and will land in the closed_at week/month/attribution
+    automatically (see services/snapshot._load_series bucketing)."""
+    t = await _get_current(db, trade_id)
+    if not t:
+        raise HTTPException(status_code=404, detail={
+            "error": "trade_not_found",
+            "hint": "No current (non-superseded) trade with that id.",
+        })
+
+    if t.closed_at is not None:
+        raise HTTPException(status_code=409, detail={
+            "error": "already_closed",
+            "closed_at": t.closed_at.isoformat(),
+            "hint": "This trade is already closed. Use POST /trades/{id}/correct if "
+                    "you need to change the exit price or P&L after the fact.",
+        })
+
+    # Compare using UTC to avoid tz-aware vs tz-naive TypeError. Trade.opened_at
+    # is TIMESTAMPTZ; incoming closed_at is parsed by Pydantic as tz-aware.
+    if payload.closed_at < t.opened_at:
+        raise HTTPException(status_code=400, detail={
+            "error": "close_before_open",
+            "hint": f"closed_at ({payload.closed_at.isoformat()}) must be >= "
+                    f"opened_at ({t.opened_at.isoformat()}).",
+        })
+
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(t, field, value)
+
+    # Defensive: risk_amount usually set at open, but re-validate anyway
+    # in case the exit-side payload changed timeframe or risk fields.
+    await _validate_tf_risk(
+        db, {"timeframe": t.timeframe, "risk_amount": t.risk_amount}, t.account_id,
+    )
+
+    await db.commit()
+    await db.refresh(t)
+    return _serialize(t)

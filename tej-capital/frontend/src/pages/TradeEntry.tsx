@@ -4,6 +4,8 @@ import {
   useCreateTrade,
   useEnrichTrade,
   useEnrichmentQueue,
+  useOpenTrades,
+  useCloseTrade,
   usePlaybookSetups,
   riskLimitHintFrom,
   SESSION_OPTIONS,
@@ -58,6 +60,7 @@ export default function TradeEntry() {
   const { data: accounts, isLoading: accountsLoading } = useAccounts();
   const { data: setups } = usePlaybookSetups();
   const { data: enrichmentQueue } = useEnrichmentQueue();
+  const { data: openTrades } = useOpenTrades();
 
   const [accountId, setAccountId] = useState<string>();
   const activeAccountId = accountId ?? accounts?.[0]?.id;
@@ -68,6 +71,9 @@ export default function TradeEntry() {
 
   const [tab, setTab] = useState<Tab>("before");
   const [showQueue, setShowQueue] = useState(false);
+  // When set, the form is in close-mode for this specific open trade.
+  // The BEFORE section is hidden and Save calls POST /trades/{id}/close.
+  const [closingTrade, setClosingTrade] = useState<Trade | null>(null);
 
   // BEFORE
   const [instrument, setInstrument] = useState("");
@@ -103,6 +109,39 @@ export default function TradeEntry() {
   const [riskFieldError, setRiskFieldError] = useState<string | null>(null);
 
   const createTrade = useCreateTrade();
+  const closeTrade = useCloseTrade();
+
+  /** Enter close-mode for an open trade. Prefills the AFTER section with
+   * defaults (closed_at = now, costs = 0) and switches the tab. Cancel
+   * returns to normal new-trade mode via `exitCloseMode()`. */
+  function startClosingTrade(t: Trade) {
+    setClosingTrade(t);
+    setTab("after");
+    setExitPrice("");
+    setClosedAt(nowLocalDatetime());
+    setGrossPnl("");
+    setCosts("");
+    setMaeR("");
+    setMfeR("");
+    setRuleCompliant("");
+    setBreachNote("");
+    setExecutionGrade("");
+    setStateOfMind("");
+    setTakeaway("");
+    setSubmitError(null);
+    setStatusMessage(null);
+    // Scroll form into view so the trader lands on the AFTER inputs.
+    setTimeout(() => {
+      const form = document.querySelector<HTMLFormElement>(".trade-entry-form");
+      form?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  }
+
+  function exitCloseMode() {
+    setClosingTrade(null);
+    setTab("before");
+    setSubmitError(null);
+  }
 
   // Risk auto-suggestion: stop distance x position size, until the trader
   // edits the field directly.
@@ -151,6 +190,38 @@ export default function TradeEntry() {
     setStatusMessage(null);
     setRiskFieldError(null);
     if (!activeAccountId) return;
+
+    // ─── Close-mode: finalise an existing open trade ───
+    if (closingTrade) {
+      const closed = toISOOrUndefined(closedAt);
+      if (!exitPrice || !grossPnl || !closed) {
+        setSubmitError("Exit price, gross P&L, and closed-at are required to close a trade.");
+        return;
+      }
+      try {
+        await closeTrade.mutateAsync({
+          id: closingTrade.id,
+          body: {
+            exit_price: exitPrice,
+            closed_at: closed,
+            gross_pnl: grossPnl,
+            costs: costs || "0",
+            mae_r: maeR || null,
+            mfe_r: mfeR || null,
+            rule_compliant: ruleCompliant === "" ? null : ruleCompliant === "yes",
+            breach_note: breachNote.trim() || null,
+            execution_grade: executionGrade || null,
+            state_of_mind: stateOfMind || null,
+            one_sentence_takeaway: takeaway.trim() || null,
+          },
+        });
+        setStatusMessage(`Trade closed. ${closingTrade.instrument} ${closingTrade.direction} finalised.`);
+        exitCloseMode();
+      } catch (err) {
+        setSubmitError(err instanceof Error ? err.message : "Could not close the trade.");
+      }
+      return;
+    }
 
     const opened = toISOOrUndefined(openedAt);
     if (!instrument.trim() || !entryPrice || !positionSize || !opened) {
@@ -230,6 +301,30 @@ export default function TradeEntry() {
 
       {showQueue && queueCount > 0 && <EnrichmentQueue trades={enrichmentQueue ?? []} />}
 
+      {openTrades && openTrades.length > 0 && (
+        <OpenPositionsPanel
+          trades={openTrades}
+          setups={setups ?? []}
+          activeId={closingTrade?.id ?? null}
+          onClose={startClosingTrade}
+        />
+      )}
+
+      {closingTrade && (
+        <div className="banner banner--info close-mode-banner" role="status">
+          Closing{" "}
+          <strong>
+            {closingTrade.instrument} {closingTrade.direction}
+          </strong>{" "}
+          opened {formatOpened(closingTrade.opened_at)} at {closingTrade.entry_price}
+          {closingTrade.risk_amount ? ` · risk $${Number(closingTrade.risk_amount).toFixed(2)}` : ""}
+          . Fill the exit fields below.{" "}
+          <button type="button" className="close-mode-cancel" onClick={exitCloseMode}>
+            Cancel
+          </button>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="form-fieldset trade-entry-form">
         {accounts && accounts.length > 1 && (
           <SelectField
@@ -246,16 +341,18 @@ export default function TradeEntry() {
           </SelectField>
         )}
 
-        <SegmentedControl
-          options={[
-            { value: "before", label: "Before — thesis" },
-            { value: "after", label: "After — outcome" },
-          ]}
-          value={tab}
-          onChange={setTab}
-        />
+        {!closingTrade && (
+          <SegmentedControl
+            options={[
+              { value: "before", label: "Before — thesis" },
+              { value: "after", label: "After — outcome" },
+            ]}
+            value={tab}
+            onChange={setTab}
+          />
+        )}
 
-        {tab === "before" ? (
+        {tab === "before" && !closingTrade ? (
           <div className="form-fieldset">
             <div className="form-row">
               <TextField
@@ -542,12 +639,82 @@ export default function TradeEntry() {
           </div>
         )}
 
-        <Button type="submit" disabled={createTrade.isPending}>
-          {createTrade.isPending ? "Saving…" : "Save trade"}
+        <Button type="submit" disabled={createTrade.isPending || closeTrade.isPending}>
+          {closingTrade
+            ? closeTrade.isPending ? "Closing…" : "Close trade"
+            : createTrade.isPending ? "Saving…" : (tab === "before" ? "Log open trade" : "Save trade")}
         </Button>
       </form>
     </div>
   );
+}
+
+/** Panel above the form listing every open trade for the user's accounts.
+ * One row per trade with a Close button that flips the main form into
+ * close-mode (BEFORE hidden, AFTER shown, save → POST /trades/{id}/close). */
+function OpenPositionsPanel({
+  trades,
+  setups,
+  activeId,
+  onClose,
+}: {
+  trades: Trade[];
+  setups: { id: string; tag: string; name: string }[];
+  activeId: string | null;
+  onClose: (t: Trade) => void;
+}) {
+  const setupsById = new Map(setups.map((s) => [s.id, s]));
+  return (
+    <section className="open-positions">
+      <div className="open-positions__header">
+        <span className="open-positions__title">Open positions</span>
+        <span className="open-positions__count">
+          {trades.length} {trades.length === 1 ? "trade" : "trades"} running
+        </span>
+      </div>
+      <ul className="open-positions__list">
+        {trades.map((t) => {
+          const setup = t.setup_id ? setupsById.get(t.setup_id) : null;
+          return (
+            <li
+              key={t.id}
+              className={"open-positions__row" + (activeId === t.id ? " open-positions__row--active" : "")}
+            >
+              <div className="open-positions__row-main">
+                <span className="open-positions__inst">{t.instrument}</span>
+                <span className="open-positions__dir">{t.direction}</span>
+                <span className="open-positions__entry">entry {t.entry_price}</span>
+                <span className="open-positions__opened">
+                  {formatOpened(t.opened_at)} · {daysHeld(t.opened_at)}d held
+                </span>
+                {setup && <span className="open-positions__setup">{setup.tag}</span>}
+                {t.timeframe && <span className="open-positions__tf">{t.timeframe}</span>}
+              </div>
+              <button
+                type="button"
+                className="btn btn--secondary open-positions__close-btn"
+                onClick={() => onClose(t)}
+                disabled={activeId === t.id}
+              >
+                {activeId === t.id ? "Closing…" : "Close"}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function formatOpened(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function daysHeld(openedIso: string): number {
+  const opened = new Date(openedIso).getTime();
+  const now = Date.now();
+  return Math.max(0, Math.floor((now - opened) / (1000 * 60 * 60 * 24)));
 }
 
 function EnrichmentQueue({ trades }: { trades: Trade[] }) {

@@ -410,6 +410,134 @@ select.field__input {
   max-width: 640px;
 }
 
+/* ---------- Open positions panel (Trade Entry) ---------- */
+
+.open-positions {
+  background: var(--ground-2);
+  border: 1px solid var(--ground-3);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-5);
+  max-width: 720px;
+}
+
+.open-positions__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--ground-3);
+}
+.open-positions__title {
+  font-family: var(--font-mono);
+  font-size: var(--size-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.open-positions__count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--size-micro);
+  color: var(--ink-3);
+}
+
+.open-positions__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.open-positions__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--ground-1);
+  border: 1px solid var(--ground-3);
+  border-radius: var(--radius-md);
+  transition: border-color var(--duration-1) var(--ease-out);
+}
+.open-positions__row:hover {
+  border-color: var(--ink-4);
+}
+.open-positions__row--active {
+  border-color: var(--accent);
+  background: var(--accent-soft, var(--ground-2));
+}
+
+.open-positions__row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--size-caption);
+  color: var(--ink-2);
+}
+
+.open-positions__inst {
+  font-weight: 600;
+  color: var(--ink-1);
+}
+.open-positions__dir {
+  padding: 1px var(--space-2);
+  background: var(--ground-3);
+  color: var(--ink-1);
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  font-size: var(--size-micro);
+  letter-spacing: 0.06em;
+}
+.open-positions__entry,
+.open-positions__opened,
+.open-positions__setup,
+.open-positions__tf {
+  color: var(--ink-3);
+}
+.open-positions__setup {
+  padding: 1px var(--space-2);
+  background: var(--ground-2);
+  border: 1px solid var(--ground-3);
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+}
+
+.open-positions__close-btn {
+  flex-shrink: 0;
+}
+
+/* ---------- Close-mode banner ---------- */
+
+.close-mode-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+.close-mode-cancel {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: var(--size-caption);
+  font-weight: 500;
+  padding: 0;
+  text-decoration: underline;
+}
+.close-mode-cancel:hover {
+  color: var(--accent-hover);
+}
+
 /* ---------- MetricCard ---------- */
 
 .metric {
@@ -656,7 +784,10 @@ select.field__input {
 }
 
 .nav__link {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   font-size: var(--size-body);
@@ -672,6 +803,28 @@ select.field__input {
 
 .nav__link--active {
   background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Small count chip next to a nav item when there's something waiting —
+ * e.g. open trades count on Trade Entry. Hidden when zero. */
+.nav__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 var(--space-1);
+  background: var(--ground-3);
+  color: var(--ink-1);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--size-micro);
+  font-weight: 600;
+}
+.nav__link--active .nav__count {
+  background: rgba(255, 255, 255, 0.18);
   color: var(--on-accent);
 }
 

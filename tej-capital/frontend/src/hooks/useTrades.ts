@@ -150,6 +150,43 @@ export function useEnrichmentQueue() {
   });
 }
 
+/** GET /api/trades/open — trades where closed_at IS NULL AND not superseded.
+ * Feeds the Open Positions panel at the top of Trade Entry so multi-day and
+ * multi-week holds are discoverable a day or a week or a month later. */
+export function useOpenTrades() {
+  return useQuery({
+    queryKey: ["trades", "open"],
+    queryFn: () => api.get<Trade[]>("/trades/open"),
+  });
+}
+
+export type TradeClosePayload = {
+  exit_price: string;
+  closed_at: string;
+  gross_pnl: string;
+  costs?: string;
+  mae_r?: string | null;
+  mfe_r?: string | null;
+  rule_compliant?: boolean | null;
+  breach_note?: string | null;
+  execution_grade?: ExecGrade | null;
+  state_of_mind?: MindState | null;
+  review?: string | null;
+  one_sentence_takeaway?: string | null;
+};
+
+/** POST /api/trades/{id}/close — finalise an open trade. NOT a correction:
+ * the trade wasn't wrong, it just wasn't over. No reason required. Refuses
+ * if the trade is already closed (409) or if closed_at < opened_at (400). */
+export function useCloseTrade() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: TradeClosePayload }) =>
+      api.post<Trade>(`/trades/${id}/close`, body),
+    onSuccess: () => invalidateTrades(qc),
+  });
+}
+
 function invalidateTrades(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["trades"], exact: false });
 }

@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { useOpenTrades } from "../hooks/useTrades";
 import "../design/components.css";
 
 const currentMonth = new Date().toISOString().slice(0, 7);
@@ -20,6 +21,9 @@ const LINKS: { to: string; label: string; end?: boolean }[] = [
 ];
 
 export function Nav() {
+  const openTradesQuery = useOpenTrades();
+  const openCount = openTradesQuery.data?.length ?? 0;
+
   return (
     <nav className="nav" aria-label="Primary">
       <div className="nav__brand">
@@ -33,7 +37,10 @@ export function Nav() {
               end={link.end}
               className={({ isActive }) => clsxNav(isActive)}
             >
-              {link.label}
+              <span>{link.label}</span>
+              {link.to === "/trades/new" && openCount > 0 && (
+                <span className="nav__count" aria-label={`${openCount} open trades`}>{openCount}</span>
+              )}
             </NavLink>
           </li>
         ))}
